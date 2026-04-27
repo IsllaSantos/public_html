@@ -1,0 +1,2 @@
+# public_html
+Este é o nosso projeto do curso de Gestão de TI da fatec campinas. Um sistema voltado para clínicas médicas.
