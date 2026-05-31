@@ -1,789 +1,2027 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TechNyes - Sistema de Gestão para Clínicas Médicas</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --color-white: #FFFFFF;
-            --color-black: #1A1A1A;
-            --color-gold: #D4AF37;
-            --color-gray-light: #F5F5F5;
-            --color-gray-medium: #CCCCCC;
-            --color-gray-dark: #555555;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--color-white);
-            color: var(--color-black);
-            line-height: 1.6;
-        }
-
-        /* Header */
-        header {
-            background: var(--color-black);
-            color: var(--color-white);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .logo-highlight {
-            color: var(--color-gold);
-        }
-
-        nav ul {
-            display: flex;
-            list-style: none;
-            gap: 2rem;
-        }
-
-        nav a {
-            color: var(--color-white);
-            text-decoration: none;
-            transition: color 0.3s;
-            font-weight: 500;
-        }
-
-        nav a:hover {
-            color: var(--color-gold);
-        }
-
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(135deg, var(--color-black) 0%, #2A2A2A 100%);
-            color: var(--color-white);
-            padding: 5rem 2rem;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            font-weight: 700;
-        }
-
-        .hero .highlight {
-            color: var(--color-gold);
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 30px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: var(--color-gold);
-            color: var(--color-black);
-        }
-
-        .btn-primary:hover {
-            background: #C19B2E;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--color-white);
-            border: 2px solid var(--color-white);
-        }
-
-        .btn-secondary:hover {
-            background: var(--color-white);
-            color: var(--color-black);
-        }
-
-        /* Funcionalidades */
-        .features {
-            max-width: 1400px;
-            margin: 4rem auto;
-            padding: 0 2rem;
-        }
-
-        .features h2 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 3rem;
-            color: var(--color-black);
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .feature-card {
-            background: var(--color-white);
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-            border: 1px solid var(--color-gray-medium);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.2);
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: var(--color-gold);
-        }
-
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: var(--color-black);
-        }
-
-        .feature-card p {
-            color: var(--color-gray-dark);
-            line-height: 1.8;
-        }
-
-        /* Login Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--color-white);
-            padding: 3rem;
-            border-radius: 15px;
-            max-width: 450px;
-            width: 90%;
-            position: relative;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            font-size: 2rem;
-            cursor: pointer;
-            color: var(--color-gray-dark);
-            transition: color 0.3s;
-        }
-
-        .close-modal:hover {
-            color: var(--color-black);
-        }
-
-        .modal-content h2 {
-            margin-bottom: 2rem;
-            text-align: center;
-            color: var(--color-black);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--color-black);
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid var(--color-gray-medium);
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--color-gold);
-        }
-
-        .btn-full {
-            width: 100%;
-            margin-top: 1rem;
-        }
-
-        /* Dashboard */
-        .dashboard {
-            display: none;
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-
-        .dashboard.active {
-            display: block;
-        }
-
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--color-gold);
-        }
-
-        .dashboard-header h2 {
-            color: var(--color-black);
-            font-size: 2rem;
-        }
-
-        .dashboard-tabs {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .tab-btn {
-            padding: 10px 20px;
-            background: var(--color-gray-light);
-            border: 2px solid var(--color-gray-medium);
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-            color: var(--color-black);
-        }
-
-        .tab-btn:hover {
-            background: var(--color-gray-medium);
-        }
-
-        .tab-btn.active {
-            background: var(--color-gold);
-            color: var(--color-white);
-            border-color: var(--color-gold);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .dashboard-card {
-            background: var(--color-white);
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
-            border: 1px solid var(--color-gray-medium);
-        }
-
-        .dashboard-card h3 {
-            margin-bottom: 1.5rem;
-            color: var(--color-black);
-            border-bottom: 2px solid var(--color-gold);
-            padding-bottom: 0.5rem;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        table th,
-        table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--color-gray-medium);
-        }
-
-        table th {
-            background: var(--color-black);
-            color: var(--color-white);
-            font-weight: 600;
-        }
-
-        table tr:hover {
-            background: var(--color-gray-light);
-        }
-
-        .status {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .status-confirmed {
-            background: #D4EDDA;
-            color: #155724;
-        }
-
-        .status-pending {
-            background: #FFF3CD;
-            color: #856404;
-        }
-
-        .status-cancelled {
-            background: #F8D7DA;
-            color: #721C24;
-        }
-
-        /* Footer */
-        footer {
-            background: var(--color-black);
-            color: var(--color-white);
-            text-align: center;
-            padding: 2rem;
-            margin-top: 4rem;
-        }
-
-        footer p {
-            opacity: 0.8;
-        }
-
-        .gold-accent {
-            color: var(--color-gold);
-            font-weight: 600;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2rem;
-            }
-
-            nav ul {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .header-content {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .dashboard-header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        }
-    </style>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>TechNyes - Sistema Clínico</title>
+
+<style>
+
+/* ================================= */
+/* RESET */
+/* ================================= */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+/* ================================= */
+/* PACIENTE TABS */
+/* ================================= */
+
+.paciente-tab{
+    display:none;
+}
+
+.paciente-tab.active{
+    display:block;
+}
+
+:root{
+    --black:#000000;
+    --white:#FFFFFF;
+    --gold:#F0B24F;
+    --gray:#F5F5F5;
+    --gray2:#EAEAEA;
+    --text:#3A3A3A;
+    --purple:#9747FF;
+    --shadow:0 10px 25px rgba(0,0,0,0.15);
+}
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:var(--gray);
+    color:var(--text);
+}
+
+/* ================================= */
+/* HEADER */
+/* ================================= */
+
+header{
+    background:var(--black);
+    padding:22px 40px;
+    color:white;
+}
+
+.header-content{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.logo{
+    font-size:2.3rem;
+    font-weight:700;
+}
+
+.logo span{
+    color:var(--gold);
+}
+
+nav{
+    display:flex;
+    gap:20px;
+}
+
+nav a{
+    color:white;
+    text-decoration:none;
+    font-weight:600;
+}
+
+/* ================================= */
+/* HOME */
+/* ================================= */
+
+.hero{
+    min-height:90vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+}
+
+.hero-content{
+    max-width:1200px;
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:50px;
+    align-items:center;
+}
+
+.hero-text h1{
+    font-size:4rem;
+    line-height:1.1;
+    margin-bottom:25px;
+}
+
+.hero-text h1 span{
+    color:var(--gold);
+}
+
+.hero-text p{
+    font-size:1.2rem;
+    line-height:1.8;
+    margin-bottom:35px;
+}
+
+.hero-buttons{
+    display:flex;
+    gap:20px;
+}
+
+.btn{
+    padding:16px 35px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:1rem;
+    font-weight:700;
+    transition:0.3s;
+}
+
+.btn-primary{
+    background:var(--gold);
+    color:white;
+}
+
+.btn-secondary{
+    background:white;
+    border:2px solid var(--gold);
+    color:var(--gold);
+}
+
+.hero-card{
+    background:white;
+    border-radius:20px;
+    padding:40px;
+    box-shadow:var(--shadow);
+}
+
+.hero-card h3{
+    margin-bottom:20px;
+    font-size:1.8rem;
+}
+
+.feature{
+    padding:15px 0;
+    border-bottom:1px solid #EEEEEE;
+}
+
+/* ================================= */
+/* LOGIN */
+/* ================================= */
+
+.login-screen{
+    display:none;
+    min-height:100vh;
+    align-items:center;
+    justify-content:center;
+    padding:30px;
+}
+
+.login-screen.active{
+    display:flex;
+}
+
+.login-box{
+    width:100%;
+    max-width:450px;
+    background:white;
+    border-radius:20px;
+    padding:40px;
+    box-shadow:var(--shadow);
+}
+
+.login-box h2{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.input-group{
+    margin-bottom:20px;
+}
+
+.input-group label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:700;
+}
+
+.input-group input,
+.input-group select{
+    width:100%;
+    padding:15px;
+    border:2px solid #DDDDDD;
+    border-radius:10px;
+    font-size:1rem;
+}
+
+.input-group input:focus,
+.input-group select:focus{
+    outline:none;
+    border-color:var(--gold);
+}
+
+/* ================================= */
+/* DASHBOARD */
+/* ================================= */
+
+.dashboard{
+    display:none;
+}
+
+.dashboard.active{
+    display:block;
+}
+
+.container{
+    width:92%;
+    max-width:1400px;
+    margin:30px auto;
+}
+
+.top-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:30px;
+    border-bottom:2px solid var(--gold);
+    padding-bottom:15px;
+}
+
+.top-bar h2{
+    font-size:2rem;
+}
+
+.top-buttons{
+    display:flex;
+    gap:15px;
+}
+
+.menu-btn{
+    padding:12px 30px;
+    border-radius:10px;
+    border:2px solid var(--gold);
+    background:white;
+    color:var(--gold);
+    cursor:pointer;
+    font-size:1rem;
+    font-weight:700;
+}
+
+.menu-btn.active{
+    background:var(--gold);
+    color:white;
+}
+
+/* ================================= */
+/* CARD */
+/* ================================= */
+
+.card{
+    background:white;
+    border-radius:15px;
+    box-shadow:var(--shadow);
+    padding:30px;
+    margin-bottom:35px;
+}
+
+.card h3{
+    margin-bottom:20px;
+    font-size:1.8rem;
+}
+
+/* ================================= */
+/* TABLE */
+/* ================================= */
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+thead{
+    background:var(--gold);
+    color:white;
+}
+
+thead th{
+    padding:18px;
+    text-align:left;
+}
+
+tbody td{
+    padding:20px 18px;
+    border-bottom:1px solid #DDDDDD;
+}
+
+.status{
+    padding:8px 18px;
+    border-radius:30px;
+    font-size:0.9rem;
+    font-weight:700;
+}
+
+.confirmed{
+    background:#BFE8C9;
+    color:#166534;
+}
+
+.pending{
+    background:#C5D9F7;
+    color:#174EA6;
+}
+
+.circle-btn{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--gold);
+    color:white;
+    cursor:pointer;
+}
+
+/* ================================= */
+/* SCREENS */
+/* ================================= */
+
+.screen{
+    display:none;
+}
+
+.screen.active{
+    display:block;
+}
+
+/* ================================= */
+/* FILTROS */
+/* ================================= */
+
+.filters{
+    display:flex;
+    justify-content:center;
+    gap:15px;
+    margin-bottom:30px;
+}
+
+.filters input,
+.filters select{
+    padding:12px;
+    border:2px solid var(--purple);
+    border-radius:8px;
+}
+
+/* ================================= */
+/* PRONTUARIO */
+/* ================================= */
+
+.prontuario-tabs{
+    display:flex;
+    gap:15px;
+    margin-bottom:30px;
+}
+
+.prontuario-btn{
+    flex:1;
+    padding:15px;
+    border-radius:12px;
+    border:2px solid var(--gold);
+    background:white;
+    color:var(--gold);
+    font-weight:700;
+    cursor:pointer;
+}
+
+.prontuario-btn.active{
+    background:var(--gold);
+    color:white;
+}
+
+.prontuario-content{
+    display:none;
+}
+
+.prontuario-content.active{
+    display:block;
+}
+
+/* ================================= */
+/* GRID */
+/* ================================= */
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:20px;
+}
+
+.field-group{
+    display:flex;
+    flex-direction:column;
+}
+
+.field-group label{
+    margin-bottom:8px;
+    font-weight:700;
+}
+
+.field{
+    background:var(--gray2);
+    padding:16px;
+    border-radius:10px;
+}
+
+.full{
+    grid-column:span 2;
+}
+
+/* ================================= */
+/* TEXTAREA */
+/* ================================= */
+
+.textarea-group{
+    margin-bottom:30px;
+}
+
+.textarea-group label{
+    display:block;
+    margin-bottom:10px;
+    font-weight:700;
+}
+
+textarea{
+    width:100%;
+    min-height:120px;
+    border:none;
+    background:var(--gray2);
+    border-radius:10px;
+    padding:20px;
+    resize:none;
+}
+
+.large{
+    min-height:220px;
+}
+
+.two-columns{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:25px;
+}
+
+.confirm-btn{
+    float:right;
+    padding:14px 35px;
+    background:var(--gold);
+    color:white;
+    border:none;
+    border-radius:10px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+/* ================================= */
+/* RESPONSIVO */
+/* ================================= */
+
+@media(max-width:900px){
+
+    .hero-content{
+        grid-template-columns:1fr;
+    }
+
+    .hero-text h1{
+        font-size:2.8rem;
+    }
+
+    .grid{
+        grid-template-columns:1fr;
+    }
+
+    .full{
+        grid-column:span 1;
+    }
+
+    .two-columns{
+        grid-template-columns:1fr;
+    }
+
+    .top-bar{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:20px;
+    }
+
+    .top-buttons{
+        width:100%;
+        flex-direction:column;
+    }
+
+}
+
+</style>
 </head>
+
 <body>
-    <!-- Header -->
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <span>Tech<span class="logo-highlight">Nyes</span></span>
-            </div>
-            <nav>
-                <ul id="main-nav">
-                    <li><a href="#" onclick="showHome()">Início</a></li>
-                    <li><a href="#funcionalidades">Funcionalidades</a></li>
-                    <li><a href="#" onclick="openModal('login')">Login</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
 
-    <!-- Home Section -->
-    <section id="home-section">
-        <!-- Hero -->
-        <div class="hero">
-            <h1>Sistema de Gestão para <span class="highlight">Clínicas Médicas</span></h1>
-            <p>Modernize sua clínica com prontuário eletrônico, agendamento online, upload de arquivos e muito mais.</p>
-            <div class="cta-buttons">
-                <button class="btn btn-primary" onclick="openModal('login')">Acessar Sistema</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('funcionalidades').scrollIntoView({behavior: 'smooth'})">Conhecer Funcionalidades</button>
-            </div>
+<!-- ================================= -->
+<!-- HEADER -->
+<!-- ================================= -->
+
+<header>
+
+    <div class="header-content">
+
+        <div class="logo">
+            Tech<span>Nyes</span>
         </div>
 
-        <!-- Funcionalidades -->
-        <section id="funcionalidades" class="features">
-            <h2>Funcionalidades do Sistema</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">📅</div>
-                    <h3>Agendamento Online</h3>
-                    <p>Permita que pacientes agendem consultas 24/7 com visualização de horários disponíveis em tempo real.</p>
-                </div>
+        <nav>
 
-                <div class="feature-card">
-                    <div class="feature-icon">📋</div>
-                    <h3>Prontuário Eletrônico</h3>
-                    <p>Registro digital completo de anamnese, histórico médico, exames e prescrições com segurança e conformidade LGPD.</p>
-                </div>
+            <a href="#" onclick="showHome()">
+                Início
+            </a>
 
-                <div class="feature-card">
-                    <div class="feature-icon">💬</div>
-                    <h3>Chat Médico-Paciente</h3>
-                    <p>Canal de comunicação seguro e criptografado para tirar dúvidas e acompanhamento contínuo.</p>
-                </div>
+            <a href="#" onclick="openLogin()">
+                Login
+            </a>
 
-                <div class="feature-card">
-                    <div class="feature-icon">💊</div>
-                    <h3>Receituário Digital</h3>
-                    <p>Emissão de receitas digitais com assinatura eletrônica (ICP-Brasil) e envio automático ao paciente.</p>
-                </div>
+        </nav>
 
-                <div class="feature-card">
-                    <div class="feature-icon">🔔</div>
-                    <h3>Lembretes Automáticos</h3>
-                    <p>Notificações de consultas e horários de medicamentos via e-mail, SMS e push notifications.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>Segurança Total</h3>
-                    <p>Criptografia de ponta a ponta, autenticação multifator e total conformidade com LGPD e normas do CFM.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Relatórios Gerenciais</h3>
-                    <p>Indicadores e métricas para tomada de decisão estratégica com exportação em PDF e Excel.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔬</div>
-                    <h3>Gestão de Exames</h3>
-                    <p>Solicitação, acompanhamento e armazenamento de exames laboratoriais e de imagem.</p>
-                </div>
-            </div>
-        </section>
-    </section>
-
-    <!-- Login Modal -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('login')">&times;</span>
-            <h2>Acessar Sistema</h2>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="user-type">Tipo de Usuário</label>
-                    <select id="user-type" required>
-                        <option value="">Selecione...</option>
-                        <option value="paciente">Paciente</option>
-                        <option value="medico">Médico</option>
-                        <!--<option value="recepcionista">Recepcionista</option>
-                        <option value="admin">Administrador</option>-->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="email">E-mail</label>
-                    <input type="email" id="email" placeholder="seu@email.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Senha</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-full">Entrar</button>
-            </form>
-        </div>
     </div>
 
-    <!-- Dashboard -->
-    <section id="dashboard-section" class="dashboard">
-        <div class="dashboard-header">
-            <h3>Bem-vindo, <span id="user-name" class="gold-accent">Usuário</span></h3>
-            <button class="btn btn-secondary" onclick="logout()">Sair</button>
+</header>
+
+<!-- ================================= -->
+<!-- HOME -->
+<!-- ================================= -->
+
+<section id="homeSection">
+
+    <div class="hero">
+
+        <div class="hero-content">
+
+            <div class="hero-text">
+
+                <h1>
+                    Sistema Inteligente para
+                    <span>Clínicas Médicas</span>
+                </h1>
+
+                <p>
+                    Plataforma moderna para gestão clínica,
+                    prontuário eletrônico, agenda médica,
+                    pacientes, exames e histórico completo.
+                </p>
+
+                <div class="hero-buttons">
+
+                    <button class="btn btn-primary"
+                    onclick="openLogin()">
+                        Acessar Sistema
+                    </button>
+
+                    <button class="btn btn-secondary">
+                        Conhecer Recursos
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="hero-card">
+
+                <h3>
+                    Funcionalidades
+                </h3>
+
+                <div class="feature">
+                    📅 Agenda Médica
+                </div>
+
+                <div class="feature">
+                    📋 Prontuário Eletrônico
+                </div>
+
+                <div class="feature">
+                    🔬 Gestão de Exames
+                </div>
+
+                <div class="feature">
+                    💬 Comunicação Clínica
+                </div>
+
+                <div class="feature">
+                    🔒 Segurança LGPD
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="dashboard-tabs">
-            <button class="tab-btn active" onclick="switchTab('agenda')">📅 Minha Agenda</button>
-            <button class="tab-btn" onclick="switchTab('prontuario')">📋 Prontuário</button>
-            <button class="tab-btn" onclick="switchTab('chat')">💬 Mensagens</button>
-            <button class="tab-btn" onclick="switchTab('exames')">🔬 Exames</button>
+    </div>
+
+</section>
+
+<!-- ================================= -->
+<!-- LOGIN -->
+<!-- ================================= -->
+
+<section id="loginSection"
+class="login-screen">
+
+    <div class="login-box">
+
+        <h2>
+            Acessar Sistema
+        </h2>
+
+        <div class="input-group">
+
+            <label>
+                Perfil
+            </label>
+
+            <select id="perfil">
+
+                <option value="">
+                    Selecione
+                </option>
+
+                <option value="medico">
+                    Médico
+                </option>
+
+                <option value="paciente">
+                    Paciente
+                </option>
+
+                <option value="secretaria">
+                    Secretaria
+                </option>
+
+            </select>
+
         </div>
 
-        <!-- Tab Agenda -->
-        <div id="tab-agenda" class="tab-content active">
-            <div class="dashboard-card">
-                <h3>Próximas Consultas</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Horário</th>
-                            <th>Médico/Paciente</th>
-                            <th>Especialidade</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>25/11/2025</td>
-                            <td>14:00</td>
-                            <td>Dr. João Silva</td>
-                            <td>Cardiologia</td>
-                            <td><span class="status status-confirmed">Confirmada</span></td>
-                        </tr>
-                        <tr>
-                            <td>28/11/2025</td>
-                            <td>10:30</td>
-                            <td>Dra. Maria Santos</td>
-                            <td>Dermatologia</td>
-                            <td><span class="status status-pending">Pendente</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button class="btn btn-primary" style="margin-top: 1rem;">+ Nova Consulta</button>
+        <div class="input-group">
+
+            <label>
+                E-mail
+            </label>
+
+            <input type="email"
+            placeholder="email@clinica.com">
+
+        </div>
+
+        <div class="input-group">
+
+            <label>
+                Senha
+            </label>
+
+            <input type="password"
+            placeholder="••••••••">
+
+        </div>
+
+        <button class="btn btn-primary"
+        style="width:100%;margin-top:10px;"
+        onclick="login()">
+
+            Entrar
+
+        </button>
+
+    </div>
+
+</section>
+
+<!-- ================================= -->
+<!-- DASHBOARD MÉDICO -->
+<!-- ================================= -->
+
+<section id="dashboard"
+class="dashboard">
+
+<div class="container">
+
+<div class="top-bar">
+
+    <h2>
+        Bem Vindo,
+        <span style="color:var(--gold)" id="userType">
+            Usuário
+        </span>
+    </h2>
+
+    <div class="top-buttons" id="menuContainer">
+
+        <!-- MENU DINÂMICO -->
+
+    </div>
+
+</div>
+
+    </div>
+
+    <!-- ================================= -->
+    <!-- AGENDA -->
+    <!-- ================================= -->
+
+    <div id="agenda"
+    class="screen active">
+
+        <div class="card">
+
+            <h3>
+                Próximas Consultas
+            </h3>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Data</th>
+                        <th>Horário</th>
+                        <th>Paciente</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>25/07/2026</td>
+                        <td>08:00</td>
+                        <td>João Bezerra</td>
+
+                        <td>
+
+                            <span class="status confirmed">
+                                Confirmada
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <button class="circle-btn">
+                                ➜
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>26/07/2026</td>
+                        <td>08:00</td>
+                        <td>Maria Dolores</td>
+
+                        <td>
+
+                            <span class="status pending">
+                                Pendente
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <button class="circle-btn">
+                                ➜
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+<div id="pacientes"
+class="screen">
+
+    <div class="prontuario-tabs">
+
+        <button class="prontuario-btn active"
+        onclick="showPacienteTab('pacientePrincipal',event)">
+            Principal
+        </button>
+
+        <button class="prontuario-btn"
+        onclick="showPacienteTab('pacienteArquivos',event)">
+            Meus Arquivos
+        </button>
+
+    </div>
+
+    <!-- PRINCIPAL -->
+
+    <div id="pacientePrincipal"
+    class="paciente-tab active">
+
+        <!-- DADOS -->
+
+        <div class="card">
+
+            <h3>
+                Meus Dados
+            </h3>
+
+            <div class="grid">
+
+                <div class="field-group">
+
+                    <label>
+                        Nome
+                    </label>
+
+                    <div class="field">
+                        João Bezerra
+                    </div>
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        CPF
+                    </label>
+
+                    <div class="field">
+                        123.456.789-00
+                    </div>
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        Sexo
+                    </label>
+
+                    <div class="field">
+                        Masculino
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- AGENDAR -->
+
+        <div class="card">
+
+            <h3>
+                Agendar Consulta
+            </h3>
+
+            <div class="grid">
+
+                <div class="field-group">
+
+                    <label>
+                        Especialidade
+                    </label>
+
+                    <select class="field">
+
+                        <option>
+                            Cardiologia
+                        </option>
+
+                        <option>
+                            Dermatologia
+                        </option>
+
+                        <option>
+                            Clínica Geral
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        Data
+                    </label>
+
+                    <input type="date"
+                    class="field">
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        Horário
+                    </label>
+
+                    <input type="time"
+                    class="field">
+
+                </div>
+
+            </div>
+
+            <br>
+
+            <button class="confirm-btn">
+                Agendar
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- ARQUIVOS -->
+
+    <div id="pacienteArquivos"
+    class="paciente-tab">
+
+        <!-- TABELA -->
+
+        <div class="card">
+
+            <h3>
+                Meus Arquivos
+            </h3>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Data</th>
+                        <th>Arquivo</th>
+                        <th>Consulta</th>
+                        <th>Ações</th>
+                    </tr>
+
+                </thead>
+
+                <tbody id="arquivosTabela">
+
+                    <tr>
+
+                        <td>
+                            17/05/2026
+                        </td>
+
+                        <td>
+                            Exame de Sangue
+                        </td>
+
+                        <td>
+                            Consulta Clínica
+                        </td>
+
+                        <td>
+
+                            <button class="menu-btn">
+                                Compartilhar
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <!-- UPLOAD -->
+
+        <div class="card">
+
+            <h3>
+                Enviar Novo Arquivo
+            </h3>
+
+            <div class="grid">
+
+                <div class="field-group">
+
+                    <label>
+                        Nome do Arquivo
+                    </label>
+
+                    <input type="text"
+                    id="nomeArquivo"
+                    class="field">
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        Consulta
+                    </label>
+
+                    <select id="consultaArquivo"
+                    class="field">
+
+                        <option>
+                            Consulta Clínica
+                        </option>
+
+                        <option>
+                            Retorno Cardiologista
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="field-group">
+
+                    <label>
+                        Arquivo
+                    </label>
+
+                    <input type="file"
+                    class="field">
+
+                </div>
+
+            </div>
+
+            <br>
+
+            <button class="confirm-btn"
+            onclick="enviarArquivo()">
+
+                Anexar Documento
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+<!-- ================================= -->
+<!-- LISTA PACIENTES MÉDICO -->
+<!-- ================================= -->
+
+<div id="listaPacientesMedico"
+class="screen">
+
+    <div class="card">
+
+        <div class="top-bar"
+        style="margin-bottom:20px;">
+
+            <h3>
+                Pacientes
+            </h3>
+
+            <input type="text"
+            placeholder="Buscar paciente..."
+            style="
+            padding:12px;
+            border-radius:10px;
+            border:2px solid var(--gold);
+            width:250px;">
+
+        </div>
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Paciente</th>
+                    <th>CPF</th>
+                    <th>Última Consulta</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <td>João Bezerra</td>
+                    <td>123.456.789-00</td>
+                    <td>02/03/2026</td>
+
+                    <td>
+                        <span class="status confirmed">
+                            Ativo
+                        </span>
+                    </td>
+
+                    <td>
+
+                        <button class="menu-btn"
+                        onclick="abrirProntuarioPaciente('João Bezerra')">
+
+                            Ver Prontuário
+
+                        </button>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Maria Dolores</td>
+                    <td>987.654.321-00</td>
+                    <td>10/04/2026</td>
+
+                    <td>
+                        <span class="status pending">
+                            Retorno
+                        </span>
+                    </td>
+
+                    <td>
+
+                        <button class="menu-btn"
+                        onclick="abrirProntuarioPaciente('Maria Dolores')">
+
+                            Ver Prontuário
+
+                        </button>
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+    <!-- ================================= -->
+    <!-- PRONTUARIO -->
+    <!-- ================================= -->
+
+    <div id="prontuario"
+    class="screen">
+
+        <div class="prontuario-tabs">
+
+            <button class="prontuario-btn active"
+            onclick="showProntuario('eletronico',event)">
+                Prontuário Eletrônico
+            </button>
+
+            <button class="prontuario-btn"
+            onclick="showProntuario('historico',event)">
+                Histórico
+            </button>
+
+        </div>
+
+        <!-- ELETRONICO -->
+
+        <div id="eletronico"
+        class="prontuario-content active">
+
+            <div class="card">
+
+                <h3>
+                    Identificação
+                </h3>
+
+                <div class="grid">
+
+                    <div class="field-group">
+                        <label>Nome</label>
+                        <div class="field">
+                            João Bezerra
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Data Nascimento</label>
+                        <div class="field">
+                            15/05/1975
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Sexo</label>
+                        <div class="field">
+                            Masculino
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Naturalidade</label>
+                        <div class="field">
+                            Brasil
+                        </div>
+                    </div>
+
+                    <div class="field-group full">
+
+                        <label>Endereço</label>
+
+                        <div class="field">
+                            Av. Euclides, 850
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ANAMNESE -->
+
+            <div class="card">
+
+                <h3>
+                    Anamnese
+                </h3>
+
+                <div class="textarea-group">
+
+                    <label>
+                        Queixa Principal
+                    </label>
+
+                    <textarea></textarea>
+
+                </div>
+
+                <div class="textarea-group">
+
+                    <label>
+                        Histórico da Doença Atual
+                    </label>
+
+                    <textarea class="large"></textarea>
+
+                </div>
+
+                <div class="two-columns">
+
+                    <div class="textarea-group">
+
+                        <label>
+                            Antecedentes
+                        </label>
+
+                        <textarea></textarea>
+
+                    </div>
+
+                    <div class="textarea-group">
+
+                        <label>
+                            Medicamentos em Uso
+                        </label>
+
+                        <textarea></textarea>
+
+                    </div>
+
+                </div>
+
+                <button class="confirm-btn">
+                    Confirmar
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- HISTORICO -->
+
+        <div id="historico"
+        class="prontuario-content">
+
+            <div class="card">
+
+                <h3>
+                    Consulta 02/03/2026
+                </h3>
+
+                <button class="btn btn-primary">
+                    Visualizar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================================= -->
+<!-- SECRETARIA -->
+<!-- ================================= -->
+
+<div id="secretariaDashboard"
+class="screen">
+
+    <!-- CARDS -->
+     <div class="prontuario-tabs">
+
+    <button class="prontuario-btn active"
+    onclick="showSecretariaTab('secretariaInicio',event)">
+        Dashboard
+    </button>
+
+    <button class="prontuario-btn"
+    onclick="showSecretariaTab('secretariaMedicos',event)">
+        Médicos
+    </button>
+
+    <button class="prontuario-btn"
+    onclick="showSecretariaTab('secretariaPacientes',event)">
+        Pacientes
+    </button>
+
+    <button class="prontuario-btn"
+    onclick="showSecretariaTab('secretariaAgendamentos',event)">
+        Agendamentos
+    </button>
+
+</div>
+<div id="secretariaInicio"
+class="prontuario-content active">
+
+    <div class="stats-row">
+
+        <div class="card">
+            <h3>Consultas Hoje</h3>
+            <div style="font-size:2rem;font-weight:bold;color:var(--gold);">
+                12
             </div>
         </div>
 
-        <!-- Tab Prontuário -->
-        <div id="tab-prontuario" class="tab-content">
-            <div class="dashboard-card">
-                <h3>Histórico Médico</h3>
-                <p>Visualize seu histórico completo de consultas, diagnósticos e tratamentos.</p>
-                <button class="btn btn-primary">Ver Prontuário Completo</button>
+        <div class="card">
+            <h3>Pendentes</h3>
+            <div style="font-size:2rem;font-weight:bold;color:orange;">
+                3
             </div>
         </div>
 
-        <!-- Tab Chat -->
-        <div id="tab-chat" class="tab-content">
-            <div class="dashboard-card">
-                <h3>Mensagens</h3>
-                <p>Converse de forma segura com seus médicos ou pacientes.</p>
-                <button class="btn btn-primary">Abrir Chat</button>
+        <div class="card">
+            <h3>Pacientes Ativos</h3>
+            <div style="font-size:2rem;font-weight:bold;color:green;">
+                26
             </div>
         </div>
 
-        <!-- Tab Exames -->
-        <div id="tab-exames" class="tab-content">
-            <div class="dashboard-card">
-                <h3>Exames Solicitados</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tipo de Exame</th>
-                            <th>Data Solicitação</th>
-                            <th>Status</th>
-                            <th>Resultado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Hemograma Completo</td>
-                            <td>20/11/2025</td>
-                            <td><span class="status status-confirmed">Realizado</span></td>
-                            <td><a href="#" style="color: var(--color-gold);">📄 Ver PDF</a></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    </div>
+
+    <!-- TABELA -->
+
+    <div class="card">
+
+        <div class="top-bar"
+        style="margin-bottom:20px;">
+
+            <h3>
+                Confirmação de Consultas
+            </h3>
+
+            <button class="menu-btn"
+            onclick="alert('Lembretes enviados')">
+                Enviar Lembretes
+            </button>
+
         </div>
-    </section>
 
-    <!-- Footer -->
-    <footer>
-        <p>&copy; 2025 <span class="gold-accent">TechNyes</span> - Sistema de Gestão para Clínicas Médicas. Todos os direitos reservados.</p>
-        <p>Desenvolvido com conformidade LGPD e normas CFM</p>
-    </footer>
+        <table>
 
-    <script>
-        // Modal Functions
-        function openModal(modalId) {
-            document.getElementById(modalId + '-modal').classList.add('active');
-        }
+            <thead>
 
-        function closeModal(modalId) {
-            document.getElementById(modalId + '-modal').classList.remove('active');
-        }
+                <tr>
+                    <th>Data</th>
+                    <th>Horário</th>
+                    <th>Paciente</th>
+                    <th>Médico</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
 
-        // Login Form - Integrado com API PHP
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const userType = document.getElementById('user-type').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            const btnSubmit = this.querySelector('button[type="submit"]');
-            const originalText = btnSubmit.textContent;
-            btnSubmit.disabled = true;
-            btnSubmit.textContent = 'Entrando...';
-            
-            try {
-                const response = await fetch('api/login.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        user_type: userType,
-                        email: email,
-                        password: password
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    sessionStorage.setItem('user', JSON.stringify(data.user));
-                    document.getElementById('user-name').textContent = data.user.nome;
-                    
-                    document.getElementById('home-section').style.display = 'none';
-                    document.getElementById('dashboard-section').classList.add('active');
-                    closeModal('login');
-                    
-                    document.getElementById('main-nav').innerHTML = `
-                        <li><a href="#" onclick="showDashboard()">Dashboard</a></li>
-                        <li><a href="#" onclick="logout()">Sair</a></li>
-                    `;
-                    
-                    loadConsultas();
-                } else {
-                    alert('Erro: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Erro:', error);
-                alert('Erro ao conectar. Verifique se os arquivos PHP estão no servidor.');
-            } finally {
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = originalText;
-            }
-        });
-        
-        // Carregar consultas do banco
-        async function loadConsultas() {
-            try {
-                const response = await fetch('api/consultas.php');
-                const data = await response.json();
-                
-                if (data.success && data.consultas && data.consultas.length > 0) {
-                    const tbody = document.querySelector('#tab-agenda tbody');
-                    tbody.innerHTML = '';
-                    
-                    data.consultas.forEach(consulta => {
-                        const row = tbody.insertRow();
-                        const dataFormatada = new Date(consulta.data_consulta).toLocaleDateString('pt-BR');
-                        const statusClass = consulta.status === 'confirmada' ? 'confirmed' : 
-                                          consulta.status === 'agendada' ? 'pending' : 'cancelled';
-                        
-                        row.innerHTML = `
-                            <td>${dataFormatada}</td>
-                            <td>${consulta.hora_consulta}</td>
-                            <td>${consulta.medico_nome || consulta.paciente_nome}</td>
-                            <td>${consulta.especialidade || '-'}</td>
-                            <td><span class="status status-${statusClass}">${consulta.status}</span></td>
-                        `;
-                    });
-                }
-            } catch (error) {
-                console.error('Erro ao carregar consultas:', error);
-            }
-        }
+            </thead>
 
-        // Logout
-        function logout() {
-            document.getElementById('home-section').style.display = 'block';
-            document.getElementById('dashboard-section').classList.remove('active');
-            document.getElementById('login-form').reset();
-            
-            // Restaura navegação
-            document.getElementById('main-nav').innerHTML = `
-                <li><a href="#" onclick="showHome()">Início</a></li>
-                <li><a href="#funcionalidades">Funcionalidades</a></li>
-                <li><a href="#" onclick="openModal('login')">Login</a></li>
-            `;
-        }
+            <tbody>
 
-        // Tab Switching
-        function switchTab(tabName) {
-            // Remove active de todos os botões e conteúdos
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            // Adiciona active no botão e conteúdo selecionado
-            event.target.classList.add('active');
-            document.getElementById('tab-' + tabName).classList.add('active');
-        }
+                <tr>
 
-        function showHome() {
-            logout();
-        }
+                    <td>17/05/2026</td>
+                    <td>09:32</td>
+                    <td>Marcos Ferreira</td>
+                    <td>Dr. Alfredo Gomes</td>
 
-        function showDashboard() {
-            document.getElementById('home-section').style.display = 'none';
-            document.getElementById('dashboard-section').classList.add('active');
-        }
+                    <td>
+                        <span class="status confirmed">
+                            Confirmada
+                        </span>
+                    </td>
 
-        // Fecha modal ao clicar fora
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('active');
-            }
-        }
-    </script>
+                    <td>
+
+                        <button class="menu-btn">
+                            Alterar
+                        </button>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>17/05/2026</td>
+                    <td>10:30</td>
+                    <td>Antonio Cesar</td>
+                    <td>Dr. Alfredo Gomes</td>
+
+                    <td>
+                        <span class="status pending">
+                            Pendente
+                        </span>
+                    </td>
+
+                    <td>
+
+                        <button class="menu-btn">
+                            Alterar
+                        </button>
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+</div>
+
+ <!-- ================================= -->
+<!-- MÉDICOS -->
+<!-- ================================= -->
+
+<div id="secretariaMedicos"
+class="prontuario-content">
+
+    <div class="card">
+
+        <div class="top-bar"
+        style="margin-bottom:20px;">
+
+            <h3>
+                Médicos Cadastrados
+            </h3>
+
+            <button class="menu-btn">
+                + Cadastrar Médico
+            </button>
+
+        </div>
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Médico</th>
+                    <th>Especialidade</th>
+                    <th>CRM</th>
+                    <th>Status</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <td>Dr. Alfredo Gomes</td>
+                    <td>Cardiologia</td>
+                    <td>CRM 12345</td>
+
+                    <td>
+                        <span class="status confirmed">
+                            Ativo
+                        </span>
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Dra. Larissa Mendes</td>
+                    <td>Dermatologia</td>
+                    <td>CRM 54321</td>
+
+                    <td>
+                        <span class="status confirmed">
+                            Ativo
+                        </span>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- ================================= -->
+<!-- PACIENTES SECRETARIA -->
+<!-- ================================= -->
+
+<div id="secretariaPacientes"
+class="prontuario-content">
+
+    <div class="card">
+
+        <div class="top-bar"
+        style="margin-bottom:20px;">
+
+            <h3>
+                Pacientes Cadastrados
+            </h3>
+
+            <button class="menu-btn">
+                + Cadastrar Paciente
+            </button>
+
+        </div>
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Paciente</th>
+                    <th>CPF</th>
+                    <th>Telefone</th>
+                    <th>Status</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <td>João Bezerra</td>
+                    <td>123.456.789-00</td>
+                    <td>(19) 99999-1111</td>
+
+                    <td>
+                        <span class="status confirmed">
+                            Ativo
+                        </span>
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Maria Dolores</td>
+                    <td>987.654.321-00</td>
+                    <td>(19) 98888-2222</td>
+
+                    <td>
+                        <span class="status pending">
+                            Retorno
+                        </span>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+    <!-- NOVO AGENDAMENTO -->
+<div id="secretariaAgendamentos"
+class="prontuario-content">
+    <div class="card">
+
+        <h3>
+            Novo Agendamento
+        </h3>
+
+        <div class="grid">
+
+            <div class="field-group">
+
+                <label>
+                    Paciente
+                </label>
+
+                <input type="text"
+                class="field"
+                placeholder="Nome do paciente">
+
+            </div>
+
+            <div class="field-group">
+
+                <label>
+                    Médico
+                </label>
+
+                <select class="field">
+
+                    <option>
+                        Dr. Alfredo Gomes
+                    </option>
+
+                    <option>
+                        Dra. Larissa Mendes
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="field-group">
+
+                <label>
+                    Data
+                </label>
+
+                <input type="date"
+                class="field">
+
+            </div>
+
+            <div class="field-group">
+
+                <label>
+                    Horário
+                </label>
+
+                <input type="time"
+                class="field">
+
+            </div>
+
+        </div>
+
+        <br>
+
+        <button class="confirm-btn">
+            Agendar Consulta
+        </button>
+
+    </div>
+
+</div>
+</div>
+</div>
+
+</section>
+
+<script>
+
+/* ================================= */
+/* LOGIN */
+/* ================================= */
+
+function openLogin(){
+
+    document.getElementById('homeSection')
+    .style.display='none';
+
+    document.getElementById('loginSection')
+    .classList.add('active');
+}
+
+function showHome(){
+
+    document.getElementById('homeSection')
+    .style.display='block';
+
+    document.getElementById('loginSection')
+    .classList.remove('active');
+
+    document.getElementById('dashboard')
+    .classList.remove('active');
+}
+
+function login(){
+
+    const perfil =
+    document.getElementById('perfil').value;
+
+    if(perfil === ''){
+
+        alert('Selecione um perfil');
+        return;
+    }
+
+    document.getElementById('loginSection')
+    .classList.remove('active');
+
+    document.getElementById('dashboard')
+    .classList.add('active');
+
+    document.getElementById('userType')
+    .innerText =
+    perfil.charAt(0).toUpperCase()
+    + perfil.slice(1);
+
+    let menu =
+    document.getElementById('menuContainer');
+
+    menu.innerHTML = '';
+
+    document.querySelectorAll('.screen')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    /* ================================ */
+    /* MÉDICO */
+    /* ================================ */
+
+    if(perfil === 'medico'){
+
+        menu.innerHTML = `
+
+            <button class="menu-btn active"
+            onclick="showScreen('agenda',event)">
+                Minha Agenda
+            </button>
+
+            <button class="menu-btn"
+onclick="showScreen('listaPacientesMedico',event)">
+    Pacientes
+</button>
+
+            <button class="menu-btn"
+            onclick="logout()">
+                Sair
+            </button>
+
+        `;
+
+        document.getElementById('agenda')
+        .classList.add('active');
+    }
+
+    /* ================================ */
+    /* PACIENTE */
+    /* ================================ */
+
+    if(perfil === 'paciente'){
+
+        menu.innerHTML = `
+
+            <button class="menu-btn active"
+            onclick="showScreen('pacientes',event)">
+                Minha Área
+            </button>
+
+            <button class="menu-btn"
+            onclick="logout()">
+                Sair
+            </button>
+
+        `;
+
+        document.getElementById('pacientes')
+        .classList.add('active');
+    }
+
+    /* ================================ */
+    /* SECRETÁRIA */
+    /* ================================ */
+
+    if(perfil === 'secretaria'){
+
+        menu.innerHTML = `
+
+            <button class="menu-btn active"
+            onclick="showScreen('secretariaDashboard',event)">
+                Dashboard
+            </button>
+
+            <button class="menu-btn"
+            onclick="logout()">
+                Sair
+            </button>
+
+        `;
+
+        document.getElementById('secretariaDashboard')
+        .classList.add('active');
+    }
+}
+
+function showSecretariaTab(tab,event){
+
+    document.querySelectorAll('#secretariaDashboard .prontuario-content')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.querySelectorAll('#secretariaDashboard .prontuario-btn')
+    .forEach(btn=>{
+        btn.classList.remove('active');
+    });
+
+    document.getElementById(tab)
+    .classList.add('active');
+
+    event.target.classList.add('active');
+}
+
+function logout(){
+
+    document.getElementById('dashboard')
+    .classList.remove('active');
+
+    document.getElementById('loginSection')
+    .classList.add('active');
+
+    document.querySelectorAll('.screen')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+}
+
+/* ================================= */
+/* MENU */
+/* ================================= */
+
+function showScreen(screen,event){
+
+    document.querySelectorAll('.screen')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.querySelectorAll('.menu-btn')
+    .forEach(btn=>{
+        btn.classList.remove('active');
+    });
+
+    document.getElementById(screen)
+    .classList.add('active');
+
+    event.target.classList.add('active');
+}
+
+/* ================================= */
+/* PRONTUARIO */
+/* ================================= */
+
+function openProntuario(){
+
+    document.querySelectorAll('.screen')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.getElementById('prontuario')
+    .classList.add('active');
+}
+
+/* ================================= */
+/* ABAS PRONTUARIO */
+/* ================================= */
+
+function showProntuario(tab,event){
+
+    document.querySelectorAll('.prontuario-content')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.querySelectorAll('.prontuario-btn')
+    .forEach(btn=>{
+        btn.classList.remove('active');
+    });
+
+    document.getElementById(tab)
+    .classList.add('active');
+
+    event.target.classList.add('active');
+}
+/* ================================= */
+/* PACIENTE */
+/* ================================= */
+
+function showPacienteTab(tab,event){
+
+    document.querySelectorAll('.paciente-tab')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.querySelectorAll('#pacientes .prontuario-btn')
+    .forEach(btn=>{
+        btn.classList.remove('active');
+    });
+
+    document.getElementById(tab)
+    .classList.add('active');
+
+    event.target.classList.add('active');
+}
+
+function enviarArquivo(){
+
+    let nome =
+    document.getElementById('nomeArquivo').value;
+
+    let consulta =
+    document.getElementById('consultaArquivo').value;
+
+    if(nome === ''){
+
+        alert('Digite o nome do arquivo');
+
+        return;
+    }
+
+    let tabela =
+    document.getElementById('arquivosTabela');
+
+    tabela.innerHTML += `
+
+        <tr>
+
+            <td>
+                Hoje
+            </td>
+
+            <td>
+                ${nome}
+            </td>
+
+            <td>
+                ${consulta}
+            </td>
+
+            <td>
+
+                <button class="menu-btn">
+                    Compartilhar
+                </button>
+
+            </td>
+
+        </tr>
+
+    `;
+
+    alert('Arquivo enviado com sucesso.');
+
+    document.getElementById('nomeArquivo').value='';
+}
+
+function abrirProntuarioPaciente(nome){
+
+    document.querySelectorAll('.screen')
+    .forEach(item=>{
+        item.classList.remove('active');
+    });
+
+    document.getElementById('prontuario')
+    .classList.add('active');
+
+    alert('Abrindo prontuário de: ' + nome);
+}
+</script>
+
 </body>
 </html>
