@@ -1,84 +1,122 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: https://technyes.devfatec-campinas.com.br');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+require_once('../config/database.php');
 
 session_start();
 
-require_once '../config/database.php';
+$email = trim($_POST['email'] ?? '');
+$senha = trim($_POST['senha'] ?? '');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+if (
+    empty($email) ||
+    empty($senha)
+) {
+
+    header("Location: ../login.php");
     exit;
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
+$sql = "
+SELECT *
+FROM usuarios
+WHERE email = ?
+AND status = 'ativo'
+";
 
-$email = filter_var($data['email'] ?? '', FILTER_SANITIZE_EMAIL);
-$senha = $data['password'] ?? '';
-$tipo_usuario = trim($data['user_type'] ?? '');
+$stmt = $conn->prepare($sql);
 
-if (empty($email) || empty($senha) || empty($tipo_usuario)) {
-    echo json_encode(['success' => false, 'message' => 'Todos os campos são obrigatórios']);
+$stmt->bind_param(
+    "s",
+    $email
+);
+
+$stmt->execute();
+
+$resultado =
+$stmt->get_result();
+
+if ($resultado->num_rows == 0) {
+
+    die("Usuário não encontrado.");
+}
+
+$usuario =
+$resultado->fetch_assoc();
+
+
+
+if (
+    password_verify(
+        $senha,
+        $usuario['senha']
+    )
+) {
+
+    $_SESSION['id_usuario'] =
+    $usuario['id_usuario'];
+
+    $_SESSION['nome'] =
+    $usuario['nome'];
+
+    $_SESSION['email'] =
+    $usuario['email'];
+
+    $_SESSION['perfil'] =
+    $usuario['perfil'];
+
+} else {
+
+    $_SESSION['erro_login'] =
+    "Senha incorreta.";
+
+    header(
+        "Location: ../login.php"
+    );
+
     exit;
 }
 
-try {
-    if ($tipo_usuario === 'paciente') {
-        $stmt = $pdo->prepare("
-            SELECT id_paciente AS id, nome_completo, email, senha_hash, 'paciente' AS tipo
-            FROM paciente
-            WHERE email = ? AND ativo = 1
-            LIMIT 1
-        ");
-    } elseif ($tipo_usuario === 'medico') {
-        $stmt = $pdo->prepare("
-            SELECT id_medico AS id, nome_completo, email, senha_hash, especialidade, 'medico' AS tipo
-            FROM medico
-            WHERE email = ? AND ativo = 1
-            LIMIT 1
-        ");
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Tipo de usuário inválido']);
-        exit;
-    }
 
-    $stmt->execute([$email]);
-    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+/* REDIRECIONA */
 
-    if (!$usuario) {
-        echo json_encode(['success' => false, 'message' => 'Usuário não encontrado ou inativo']);
-        exit;
-    }
+switch ($usuario['perfil']) {
 
-    if (!password_verify($senha, $usuario['senha_hash'])) {
-        echo json_encode(['success' => false, 'message' => 'E-mail ou senha incorretos']);
-        exit;
-    }
+    case 'admin':
 
-    $_SESSION['user_id'] = $usuario['id'];
-    $_SESSION['user_name'] = $usuario['nome_completo'];
-    $_SESSION['user_type'] = $usuario['tipo'];
-    $_SESSION['user_email'] = $usuario['email'];
+        header(
+            "Location: ../admin.php"
+        );
+        break;
 
-    echo json_encode([
-        'success' => true,
-        'user' => [
-            'id' => $usuario['id'],
-            'nome' => $usuario['nome_completo'],
-            'email' => $usuario['email'],
-            'tipo' => $usuario['tipo'],
-            'especialidade' => $usuario['especialidade'] ?? null
-        ]
-    ]);
-} catch (PDOException $e) {
-    error_log('Erro login: ' . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Erro no servidor. Tente novamente.']);
+    case 'secretaria':
+
+        header(
+            "Location: ../secretaria.php"
+        );
+        break;
+
+    case 'medico':
+
+        header(
+            "Location: ../medico.php"
+        );
+        break;
+
+    case 'paciente':
+
+        header(
+            "Location: ../paciente.php"
+        );
+        break;
+
+    default:
+
+        session_destroy();
+
+        header(
+            "Location: ../login.php"
+        );
+        break;
 }
-?>
+
+exit;
