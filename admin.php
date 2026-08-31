@@ -6,23 +6,51 @@ verificarPerfil('admin');
 
 $nomeAdmin = $_SESSION['nome'];
 
-?>
-<?php
 require_once('config/database.php');
 
-$usuarios =
-$conn->query("
-SELECT
-id_usuario,
-nome,
-email,
-perfil,
-status
-FROM usuarios
-ORDER BY nome
+
+/* ==============================
+   BUSCA USUÁRIOS
+============================== */
+
+$usuarios = $conn->query("
+    SELECT
+        u.id_usuario,
+        u.nome,
+        u.email,
+        u.perfil,
+        u.status,
+        c.nome AS nome_clinica
+    FROM usuarios u
+    LEFT JOIN clinica c
+        ON u.id_clinica = c.id_clinica
+    ORDER BY u.nome
 ");
+
+
+/* ==============================
+   BUSCA CLÍNICAS
+============================== */
+
+$clinicas = $conn->query("
+    SELECT
+        id_clinica,
+        nome,
+        cnpj,
+        telefone,
+        email,
+        cidade,
+        estado,
+        status,
+        data_cadastro
+    FROM clinica
+    ORDER BY nome
+");
+
 ?>
+
 <!DOCTYPE html>
+
 <html lang="pt-BR">
 
 <head>
@@ -40,525 +68,928 @@ ORDER BY nome
 
 <header>
 
-    <div class="logo">
-        Tech<span>Nyes</span>
-    </div>
+```
+<div class="logo">
+    Tech<span>Nyes</span>
+</div>
 
-    <nav>
+<nav>
 
-        <button onclick="showAdminTab('dashboard',event)">
-            Dashboard
-        </button>
+    <button onclick="showAdminTab('dashboard',event)">
+        Dashboard
+    </button>
 
-        <button onclick="showAdminTab('clinicas',event)">
-            Clínicas
-        </button>
+    <button onclick="showAdminTab('clinicas',event)">
+        Clínicas
+    </button>
 
-        <button onclick="showAdminTab('usuarios',event)">
-            Usuários
-        </button>
+    <button onclick="showAdminTab('usuarios',event)">
+        Usuários
+    </button>
 
-        <button onclick="showAdminTab('planos',event)">
-            Planos
-        </button>
+    <button onclick="showAdminTab('planos',event)">
+        Planos
+    </button>
 
-        <button onclick="showAdminTab('financeiro',event)">
-            Financeiro
-        </button>
+    <button onclick="showAdminTab('financeiro',event)">
+        Financeiro
+    </button>
 
-        <button onclick="showAdminTab('logs',event)">
-            Logs
-        </button>
-<button onclick="window.location.href='logout.php'">
-    Sair
-</button>
-    </nav>
+    <button onclick="showAdminTab('logs',event)">
+        Logs
+    </button>
+
+    <button onclick="window.location.href='logout.php'">
+        Sair
+    </button>
+
+</nav>
+```
 
 </header>
 
 <div class="container">
 
-    <div class="top-bar">
+```
+<div class="top-bar">
 
-        <h2>
+    <h2>
 
-            Painel Administrativo
+        Painel Administrativo
 
-            <span style="color:var(--gold);">
+        <span style="color:var(--gold);">
 
-                <?php echo htmlspecialchars($nomeAdmin); ?>
+            <?php echo htmlspecialchars($nomeAdmin); ?>
 
-            </span>
+        </span>
 
-        </h2>
+    </h2>
 
-    </div>
+</div>
+```
 
 </div>
 
-<!-- DASHBOARD -->
+<!-- ==============================
+     DASHBOARD
+============================== -->
 
 <section id="dashboard" class="admin-tab active">
 
-    <div class="container">
+```
+<div class="container">
 
-        <div class="grid">
+    <div class="grid">
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Clínicas Ativas</h3>
+            <h3>Clínicas Ativas</h3>
 
-                <h1>12</h1>
+            <h1>12</h1>
 
-            </div>
+        </div>
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Médicos</h3>
+            <h3>Médicos</h3>
 
-                <h1>85</h1>
+            <h1>85</h1>
 
-            </div>
+        </div>
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Pacientes</h3>
+            <h3>Pacientes</h3>
 
-                <h1>2.540</h1>
+            <h1>2.540</h1>
 
-            </div>
+        </div>
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Faturamento Mensal</h3>
+            <h3>Faturamento Mensal</h3>
 
-                <h1>R$ 18.450</h1>
+            <h1>R$ 18.450</h1>
 
-            </div>
+        </div>
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Consultas Hoje</h3>
+            <h3>Consultas Hoje</h3>
 
-                <h1>154</h1>
+            <h1>154</h1>
 
-            </div>
+        </div>
 
-            <div class="card">
+        <div class="card">
 
-                <h3>Assinaturas Ativas</h3>
+            <h3>Assinaturas Ativas</h3>
 
-                <h1>12</h1>
-
-            </div>
+            <h1>12</h1>
 
         </div>
 
     </div>
 
+</div>
+```
+
 </section>
 
-<!-- CLINICAS -->
+<!-- ==============================
+     CLÍNICAS
+============================== -->
 
 <section id="clinicas" class="admin-tab">
 
-    <div class="container">
+```
+<div class="container">
+
+    <?php if(isset($_GET['clinica_sucesso'])): ?>
 
         <div class="card">
 
-            <div class="top-bar">
+            <p style="color:green;font-weight:bold;">
 
-                <h3>Clínicas Cadastradas</h3>
+                Clínica cadastrada com sucesso!
 
-                <button class="btn btn-primary">
-                    Nova Clínica
-                </button>
-
-            </div>
-
-            <table>
-
-                <thead>
-
-                    <tr>
-                        <th>Nome</th>
-                        <th>Cidade</th>
-                        <th>Plano</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    <tr>
-
-                        <td>Clínica Saúde+</td>
-                        <td>Campinas</td>
-                        <td>Premium</td>
-
-                        <td>
-                            <span class="status confirmed">
-                                Ativa
-                            </span>
-                        </td>
-
-                        <td>
-                            <button class="menu-btn">
-                                Editar
-                            </button>
-                        </td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
+            </p>
 
         </div>
 
-    </div>
+    <?php endif; ?>
 
-</section>
 
-<!-- USUARIOS -->
+    <!-- FORMULÁRIO NOVA CLÍNICA -->
 
-<!-- USUARIOS -->
+    <div class="card">
 
-<section id="usuarios" class="admin-tab">
+        <div class="top-bar">
 
-    <div class="container">
-
-        <div class="card">
-
-        <?php if(isset($_GET['sucesso'])): ?>
-
-<div class="card">
-
-    <p style="color:green;font-weight:bold;">
-
-        Usuário cadastrado com sucesso!
-
-    </p>
-
-</div>
-
-<?php endif; ?>
             <h3>
-                Novo Usuário
+                Nova Clínica
             </h3>
 
-            <form
-            action="api/cadastro_usuario.php"
-            method="POST">
+        </div>
 
-                <div class="grid">
 
-                    <div class="field-group">
+        <form
+            action="api/cadastro_clinica.php"
+            method="POST"
+        >
 
-                        <label>
-                            Nome
-                        </label>
+            <div class="grid">
 
-                        <input
+
+                <div class="field-group">
+
+                    <label>
+                        Nome da Clínica *
+                    </label>
+
+                    <input
                         type="text"
                         name="nome"
                         class="field"
-                        required>
-
-                    </div>
-
-                    <div class="field-group">
-
-                        <label>
-                            E-mail
-                        </label>
-
-                        <input
-                        type="email"
-                        name="email"
-                        class="field"
-                        required>
-
-                    </div>
-
-                    <div class="field-group">
-
-                        <label>
-                            Senha
-                        </label>
-
-                        <input
-                        type="password"
-                        name="senha"
-                        class="field"
-                        required>
-
-                    </div>
-
-                    <div class="field-group">
-
-                        <label>
-                            Perfil
-                        </label>
-
-                        <select
-                        name="perfil"
-                        class="field"
-                        required>
-
-                            <option value="">
-                                Selecione
-                            </option>
-
-                            <option value="admin">
-                                Administrador
-                            </option>
-
-                            <option value="secretaria">
-                                Secretária
-                            </option>
-
-                            <option value="medico">
-                                Médico
-                            </option>
-
-                            <option value="paciente">
-                                Paciente
-                            </option>
-
-                        </select>
-
-                    </div>
+                        required
+                    >
 
                 </div>
 
-                <br>
 
-                <button
+                <div class="field-group">
+
+                    <label>
+                        CNPJ *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="cnpj"
+                        class="field"
+                        maxlength="14"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Telefone
+                    </label>
+
+                    <input
+                        type="text"
+                        name="telefone"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        E-mail
+                    </label>
+
+                    <input
+                        type="email"
+                        name="email"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        CEP
+                    </label>
+
+                    <input
+                        type="text"
+                        name="cep"
+                        class="field"
+                        maxlength="8"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Endereço
+                    </label>
+
+                    <input
+                        type="text"
+                        name="endereco"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Número
+                    </label>
+
+                    <input
+                        type="text"
+                        name="numero"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Complemento
+                    </label>
+
+                    <input
+                        type="text"
+                        name="complemento"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Bairro
+                    </label>
+
+                    <input
+                        type="text"
+                        name="bairro"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Cidade
+                    </label>
+
+                    <input
+                        type="text"
+                        name="cidade"
+                        class="field"
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Estado
+                    </label>
+
+                    <select
+                        name="estado"
+                        class="field"
+                    >
+
+                        <option value="">
+                            Selecione
+                        </option>
+
+                        <option value="SP">SP</option>
+                        <option value="RJ">RJ</option>
+                        <option value="MG">MG</option>
+                        <option value="PR">PR</option>
+                        <option value="SC">SC</option>
+                        <option value="RS">RS</option>
+                        <option value="BA">BA</option>
+                        <option value="PE">PE</option>
+                        <option value="GO">GO</option>
+                        <option value="DF">DF</option>
+
+                    </select>
+
+                </div>
+
+
+            </div>
+
+
+            <br>
+
+
+            <button
                 type="submit"
-                class="confirm-btn">
+                class="confirm-btn"
+            >
 
-                    Cadastrar Usuário
+                Cadastrar Clínica
 
-                </button>
+            </button>
 
-            </form>
-
-        </div>
-
-        <div class="card">
-
-            <h3>
-                Usuários Cadastrados
-            </h3>
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>E-mail</th>
-                        <th>Perfil</th>
-                        <th>Status</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                <?php while($u = $usuarios->fetch_assoc()): ?>
-
-                    <tr>
-
-                        <td>
-                            <?= $u['id_usuario'] ?>
-                        </td>
-
-                        <td>
-                            <?= htmlspecialchars($u['nome']) ?>
-                        </td>
-
-                        <td>
-                            <?= htmlspecialchars($u['email']) ?>
-                        </td>
-
-                        <td>
-                            <?= htmlspecialchars($u['perfil']) ?>
-                        </td>
-
-                        <td>
-                            <?= htmlspecialchars($u['status']) ?>
-                        </td>
-
-                    </tr>
-
-                <?php endwhile; ?>
-
-                </tbody>
-
-            </table>
-
-        </div>
+        </form>
 
     </div>
 
-</section>
-        
 
-<!-- PLANOS -->
+    <!-- LISTA DE CLÍNICAS -->
+
+    <div class="card">
+
+        <div class="top-bar">
+
+            <h3>
+                Clínicas Cadastradas
+            </h3>
+
+        </div>
+
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Cidade</th>
+                    <th>Estado</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+            <?php while($c = $clinicas->fetch_assoc()): ?>
+
+                <tr>
+
+                    <td>
+                        <?= $c['id_clinica'] ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($c['nome']) ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($c['cidade']) ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($c['estado']) ?>
+                    </td>
+
+                    <td>
+
+                        <?php if($c['status'] === 'ativa'): ?>
+
+                            <span class="status confirmed">
+                                Ativa
+                            </span>
+
+                        <?php else: ?>
+
+                            <span class="status">
+                                Inativa
+                            </span>
+
+                        <?php endif; ?>
+
+                    </td>
+
+                    <td>
+
+                        <button
+                            class="menu-btn"
+                            type="button"
+                        >
+                            Editar
+                        </button>
+
+                    </td>
+
+                </tr>
+
+            <?php endwhile; ?>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<!-- ==============================
+     USUÁRIOS
+============================== -->
+
+<section id="usuarios" class="admin-tab">
+
+```
+<div class="container">
+
+
+    <div class="card">
+
+        <?php if(isset($_GET['sucesso'])): ?>
+
+            <div class="card">
+
+                <p style="color:green;font-weight:bold;">
+
+                    Usuário cadastrado com sucesso!
+
+                </p>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <h3>
+            Novo Usuário
+        </h3>
+
+
+        <form
+            action="api/cadastro_usuario.php"
+            method="POST"
+        >
+
+            <div class="grid">
+
+
+                <div class="field-group">
+
+                    <label>
+                        Nome
+                    </label>
+
+                    <input
+                        type="text"
+                        name="nome"
+                        class="field"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        E-mail
+                    </label>
+
+                    <input
+                        type="email"
+                        name="email"
+                        class="field"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Senha
+                    </label>
+
+                    <input
+                        type="password"
+                        name="senha"
+                        class="field"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field-group">
+
+                    <label>
+                        Perfil
+                    </label>
+
+                    <select
+                        name="perfil"
+                        class="field"
+                        required
+                    >
+
+                        <option value="">
+                            Selecione
+                        </option>
+
+                        <option value="admin">
+                            Administrador
+                        </option>
+
+                        <option value="secretaria">
+                            Secretária
+                        </option>
+
+                        <option value="medico">
+                            Médico
+                        </option>
+
+                        <option value="paciente">
+                            Paciente
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+            </div>
+
+
+            <br>
+
+
+            <button
+                type="submit"
+                class="confirm-btn"
+            >
+
+                Cadastrar Usuário
+
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>
+            Usuários Cadastrados
+        </h3>
+
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Perfil</th>
+                    <th>Clínica</th>
+                    <th>Status</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+            <?php while($u = $usuarios->fetch_assoc()): ?>
+
+                <tr>
+
+                    <td>
+                        <?= $u['id_usuario'] ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($u['nome']) ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($u['email']) ?>
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($u['perfil']) ?>
+                    </td>
+
+                    <td>
+
+                        <?= $u['nome_clinica']
+                            ? htmlspecialchars($u['nome_clinica'])
+                            : 'Administrador Master'
+                        ?>
+
+                    </td>
+
+                    <td>
+                        <?= htmlspecialchars($u['status']) ?>
+                    </td>
+
+                </tr>
+
+            <?php endwhile; ?>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<!-- ==============================
+     PLANOS
+============================== -->
 
 <section id="planos" class="admin-tab">
 
-    <div class="container">
+```
+<div class="container">
 
-        <div class="card">
+    <div class="card">
 
-            <h3>Planos da Plataforma</h3>
+        <h3>
+            Planos da Plataforma
+        </h3>
 
-            <table>
+        <table>
 
-                <thead>
+            <thead>
 
-                    <tr>
-                        <th>Plano</th>
-                        <th>Valor</th>
-                        <th>Médicos</th>
-                        <th>Armazenamento</th>
-                    </tr>
+                <tr>
 
-                </thead>
+                    <th>Plano</th>
+                    <th>Valor</th>
+                    <th>Médicos</th>
+                    <th>Armazenamento</th>
 
-                <tbody>
+                </tr>
 
-                    <tr>
+            </thead>
 
-                        <td>Básico</td>
-                        <td>R$ 99,90</td>
-                        <td>2</td>
-                        <td>10 GB</td>
 
-                    </tr>
+            <tbody>
 
-                    <tr>
+                <tr>
 
-                        <td>Premium</td>
-                        <td>R$ 299,90</td>
-                        <td>Ilimitado</td>
-                        <td>100 GB</td>
+                    <td>
+                        Básico
+                    </td>
 
-                    </tr>
+                    <td>
+                        R$ 99,90
+                    </td>
 
-                </tbody>
+                    <td>
+                        2
+                    </td>
 
-            </table>
+                    <td>
+                        10 GB
+                    </td>
 
-        </div>
+                </tr>
+
+
+                <tr>
+
+                    <td>
+                        Premium
+                    </td>
+
+                    <td>
+                        R$ 299,90
+                    </td>
+
+                    <td>
+                        Ilimitado
+                    </td>
+
+                    <td>
+                        100 GB
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
 
     </div>
 
+</div>
+```
+
 </section>
 
-<!-- FINANCEIRO -->
+<!-- ==============================
+     FINANCEIRO
+============================== -->
 
 <section id="financeiro" class="admin-tab">
 
-    <div class="container">
+```
+<div class="container">
 
-        <div class="card">
+    <div class="card">
 
-            <h3>Financeiro</h3>
+        <h3>
+            Financeiro
+        </h3>
 
-            <table>
+        <table>
 
-                <thead>
+            <thead>
 
-                    <tr>
-                        <th>Clínica</th>
-                        <th>Plano</th>
-                        <th>Valor</th>
-                        <th>Vencimento</th>
-                    </tr>
+                <tr>
 
-                </thead>
+                    <th>Clínica</th>
+                    <th>Plano</th>
+                    <th>Valor</th>
+                    <th>Vencimento</th>
 
-                <tbody>
+                </tr>
 
-                    <tr>
+            </thead>
 
-                        <td>Clínica Saúde+</td>
-                        <td>Premium</td>
-                        <td>R$ 299,90</td>
-                        <td>10/06/2026</td>
 
-                    </tr>
+            <tbody>
 
-                </tbody>
+                <tr>
 
-            </table>
+                    <td>
+                        Clínica TechNyes
+                    </td>
 
-        </div>
+                    <td>
+                        Premium
+                    </td>
+
+                    <td>
+                        R$ 299,90
+                    </td>
+
+                    <td>
+                        10/06/2026
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
 
     </div>
+
+</div>
+```
 
 </section>
 
-<!-- LOGS -->
+<!-- ==============================
+     LOGS
+============================== -->
 
 <section id="logs" class="admin-tab">
 
-    <div class="container">
+```
+<div class="container">
 
-        <div class="card">
+    <div class="card">
 
-            <h3>Logs do Sistema</h3>
+        <h3>
+            Logs do Sistema
+        </h3>
 
-            <table>
+        <table>
 
-                <thead>
+            <thead>
 
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Ação</th>
-                    </tr>
+                <tr>
 
-                </thead>
+                    <th>Data</th>
+                    <th>Usuário</th>
+                    <th>Ação</th>
 
-                <tbody>
+                </tr>
 
-                    <tr>
+            </thead>
 
-                        <td>31/05/2026 08:10</td>
-                        <td>Administrador</td>
-                        <td>Cadastro de clínica</td>
 
-                    </tr>
+            <tbody>
 
-                    <tr>
+                <tr>
 
-                        <td>31/05/2026 09:25</td>
-                        <td>Secretária</td>
-                        <td>Agendamento de consulta</td>
+                    <td>
+                        31/05/2026 08:10
+                    </td>
 
-                    </tr>
+                    <td>
+                        Administrador
+                    </td>
 
-                </tbody>
+                    <td>
+                        Cadastro de clínica
+                    </td>
 
-            </table>
+                </tr>
 
-        </div>
+
+                <tr>
+
+                    <td>
+                        31/05/2026 09:25
+                    </td>
+
+                    <td>
+                        Secretária
+                    </td>
+
+                    <td>
+                        Agendamento de consulta
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
 
     </div>
+
+</div>
+```
 
 </section>
 
 <script src="assets/js/admin.js"></script>
 
 </body>
+
 </html>

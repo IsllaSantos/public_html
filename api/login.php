@@ -64,6 +64,9 @@ if (
     $_SESSION['perfil'] =
     $usuario['perfil'];
 
+    $_SESSION['id_clinica'] =
+    $usuario['id_clinica'];
+
 } else {
 
     $_SESSION['erro_login'] =
