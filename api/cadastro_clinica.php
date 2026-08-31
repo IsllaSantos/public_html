@@ -100,11 +100,11 @@ $stmt->bind_param(
 
 if ($stmt->execute()) {
 
-    header(
-        "Location: ../admin.php?clinica_sucesso=1"
-    );
+    $_SESSION['mensagem_sucesso'] = "Clínica cadastrada com sucesso!";
 
+    header("Location: ../admin.php?aba=clinicas");
     exit;
+
 
 } else {
 
