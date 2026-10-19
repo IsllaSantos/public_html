@@ -36,14 +36,12 @@ $resultado =
 $stmt->get_result();
 
 if ($resultado->num_rows == 0) {
-
-    die("Usuário não encontrado.");
+    $_SESSION['erro_login'] = "E-mail ou senha incorretos.";
+    header("Location: ../login.php");
+    exit;
 }
 
-$usuario =
-$resultado->fetch_assoc();
-
-
+$usuario = $resultado->fetch_assoc();
 
 if (
     password_verify(
@@ -51,31 +49,14 @@ if (
         $usuario['senha']
     )
 ) {
-
-    $_SESSION['id_usuario'] =
-    $usuario['id_usuario'];
-
-    $_SESSION['nome'] =
-    $usuario['nome'];
-
-    $_SESSION['email'] =
-    $usuario['email'];
-
-    $_SESSION['perfil'] =
-    $usuario['perfil'];
-
-    $_SESSION['id_clinica'] =
-    $usuario['id_clinica'];
-
+    $_SESSION['id_usuario'] = $usuario['id_usuario'];
+    $_SESSION['nome']       = $usuario['nome'];
+    $_SESSION['email']      = $usuario['email'];
+    $_SESSION['perfil']     = $usuario['perfil'];
+    $_SESSION['id_clinica'] = $usuario['id_clinica'];
 } else {
-
-    $_SESSION['erro_login'] =
-    "Senha incorreta.";
-
-    header(
-        "Location: ../login.php"
-    );
-
+    $_SESSION['erro_login'] = "E-mail ou senha incorretos.";
+    header("Location: ../login.php");
     exit;
 }
 

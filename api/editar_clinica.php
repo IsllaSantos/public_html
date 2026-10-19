@@ -18,10 +18,10 @@ if ($id_clinica <= 0) {
 /* RECEBE OS DADOS */
 
 $nome = trim($_POST['nome'] ?? '');
-$cnpj = trim($_POST['cnpj'] ?? '');
-$telefone = trim($_POST['telefone'] ?? '');
+$cnpj = preg_replace('/\D/', '', trim($_POST['cnpj'] ?? ''));
+$telefone = preg_replace('/\D/', '', trim($_POST['telefone'] ?? ''));
 $email = trim($_POST['email'] ?? '');
-$cep = trim($_POST['cep'] ?? '');
+$cep = preg_replace('/\D/', '', trim($_POST['cep'] ?? ''));
 $endereco = trim($_POST['endereco'] ?? '');
 $numero = trim($_POST['numero'] ?? '');
 $complemento = trim($_POST['complemento'] ?? '');
@@ -123,7 +123,7 @@ if ($stmt->execute()) {
 
     $_SESSION['mensagem_sucesso'] = "Clínica atualizada com sucesso!";
 
-    header("Location: admin.php?aba=clinicas");
+    header("Location: ../admin.php?aba=clinicas");
     exit;
 
 } else {

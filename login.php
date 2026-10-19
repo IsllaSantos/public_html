@@ -1,115 +1,87 @@
 <?php
 session_start();
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>TechNyes - Login</title>
-
-<link rel="stylesheet" href="assets/css/style.css">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechNyes - Acesso ao Sistema</title>
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
-
 <body>
 
 <section id="loginSection" class="login-screen active">
 
     <div class="login-box">
 
-        <div style="text-align:center;margin-bottom:25px;">
-
-            <h1 class="logo login-logo">
+        <div style="text-align:center;margin-bottom:28px;">
+            <h1 class="logo login-logo" style="justify-content:center;">
                 Tech<span>Nyes</span>
             </h1>
-
-            <p style="margin-top:10px;color:#777;">
-                Sistema Inteligente para Clínicas
+            <p style="margin-top:8px;color:var(--text-muted);font-size:0.92rem;">
+                Sistema Inteligente para Clínicas e Consultórios
             </p>
-
         </div>
 
-        <h2>
-            Acessar Sistema
-        </h2>
+        <h2>Acessar Sistema</h2>
 
+        <?php if (isset($_SESSION['erro_login'])): ?>
+            <div style="background:var(--danger-light);border:1px solid rgba(239,68,68,0.3);color:var(--danger);padding:12px 16px;border-radius:var(--radius-md);margin-bottom:18px;font-size:0.88rem;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.1rem;font-weight:bold;">⚠</span>
+                <span><?= htmlspecialchars($_SESSION['erro_login']) ?></span>
+            </div>
+            <?php unset($_SESSION['erro_login']); ?>
+        <?php endif; ?>
 
-        <form
-    action="api/login.php"
-    method="POST"
-    autocomplete="off"
-    onsubmit="return validarLogin()">
+        <form action="api/login.php" method="POST" autocomplete="on" onsubmit="return validarLogin()">
 
             <div class="input-group">
-
-                <label for="email">
-                    E-mail
-                </label>
-
+                <label for="email">E-mail Profissional ou Paciente</label>
                 <input
                     type="email"
                     id="email"
                     name="email"
-                    placeholder="email@clinica.com"
-                    required autocomplete="email">
-
+                    placeholder="seuemail@clinica.com"
+                    required
+                    autocomplete="email"
+                    autofocus>
             </div>
 
             <div class="input-group">
-
-                <label for="senha">
-                    Senha
-                </label>
-
-                <input
-                    type="password"
-                    id="senha"
-                    name="senha"
-                    placeholder="••••••••"
-                    required autocomplete="new-password">
-
+                <label for="senha">Senha</label>
+                <div class="input-password-wrapper">
+                    <input
+                        type="password"
+                        id="senha"
+                        name="senha"
+                        placeholder="••••••••"
+                        required
+                        autocomplete="current-password">
+                    <button type="button" class="btn-toggle-pass" id="btnToggleSenha" onclick="toggleVisibilidadeSenha()" title="Mostrar/ocultar senha">
+                        👁
+                    </button>
+                </div>
             </div>
 
-            <?php
-
-if (isset($_SESSION['erro_login'])) {
-    echo "<p style='color:red; margin-bottom:10px;'>"
-        . $_SESSION['erro_login'] .
-    "</p>";
-
-    unset($_SESSION['erro_login']);
-}
-?>
-
-            <button
-                class="btn btn-primary"
-                type="submit">
-
-                Entrar
-
+            <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;padding:12px;">
+                Entrar no Sistema →
             </button>
 
         </form>
 
         <button
             class="btn btn-secondary"
-            style="width:100%;margin-top:15px;"
+            style="width:100%;margin-top:14px;padding:10px;"
             onclick="window.location.href='index.php'">
-
-            Voltar ao Site
-
+            ← Voltar à Página Inicial
         </button>
 
     </div>
 
 </section>
 
+<script src="assets/js/main.js"></script>
 <script src="assets/js/login.js"></script>
-
 </body>
 </html>

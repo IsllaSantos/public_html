@@ -39,6 +39,18 @@ if ($resultado->num_rows === 0) {
 
 $clinica = $resultado->fetch_assoc();
 
+
+/* LISTA DE ESTADOS */
+
+$estados = [
+    'AC', 'AL', 'AP', 'AM', 'BA',
+    'CE', 'DF', 'ES', 'GO', 'MA',
+    'MT', 'MS', 'MG', 'PA', 'PB',
+    'PR', 'PE', 'PI', 'RJ', 'RN',
+    'RS', 'RO', 'RR', 'SC', 'SP',
+    'SE', 'TO'
+];
+
 ?>
 
 <!DOCTYPE html>
@@ -57,7 +69,7 @@ $clinica = $resultado->fetch_assoc();
 
 <link
     rel="stylesheet"
-    href="assets/css/style.css"
+    href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>"
 >
 
 </head>
@@ -74,7 +86,7 @@ $clinica = $resultado->fetch_assoc();
     <nav>
 
         <button
-            onclick="window.location.href='admin.php'"
+            onclick="window.location.href='admin.php?aba=clinicas'"
         >
             Voltar
         </button>
@@ -142,8 +154,9 @@ $clinica = $resultado->fetch_assoc();
                     <input
                         type="text"
                         name="cnpj"
-                        class="field"
-                        maxlength="14"
+                        class="field mask-cnpj"
+                        maxlength="18"
+                        placeholder="XX.XXX.XXX/XXXX-XX"
                         value="<?= htmlspecialchars($clinica['cnpj']) ?>"
                         required
                     >
@@ -160,7 +173,8 @@ $clinica = $resultado->fetch_assoc();
                     <input
                         type="text"
                         name="telefone"
-                        class="field"
+                        class="field mask-telefone"
+                        placeholder="(XX) XXXXX-XXXX"
                         value="<?= htmlspecialchars($clinica['telefone'] ?? '') ?>"
                     >
 
@@ -192,8 +206,9 @@ $clinica = $resultado->fetch_assoc();
                     <input
                         type="text"
                         name="cep"
-                        class="field"
-                        maxlength="8"
+                        class="field mask-cep"
+                        maxlength="9"
+                        placeholder="XXXXX-XXX"
                         value="<?= htmlspecialchars($clinica['cep'] ?? '') ?>"
                     >
 
@@ -295,24 +310,14 @@ $clinica = $resultado->fetch_assoc();
                             Selecione
                         </option>
 
-                        <?php
-
-                        $estados = [
-                            'SP', 'RJ', 'MG', 'PR',
-                            'SC', 'RS', 'BA', 'PE',
-                            'GO', 'DF'
-                        ];
-
-                        foreach ($estados as $estado):
-
-                        ?>
+                        <?php foreach ($estados as $uf): ?>
 
                             <option
-                                value="<?= $estado ?>"
-                                <?= $clinica['estado'] === $estado ? 'selected' : '' ?>
+                                value="<?= $uf ?>"
+                                <?= ($clinica['estado'] ?? '') === $uf ? 'selected' : '' ?>
                             >
 
-                                <?= $estado ?>
+                                <?= $uf ?>
 
                             </option>
 
@@ -370,7 +375,7 @@ $clinica = $resultado->fetch_assoc();
             <button
                 type="button"
                 class="menu-btn"
-                onclick="window.location.href='admin.php'"
+                onclick="window.location.href='admin.php?aba=clinicas'"
             >
                 Cancelar
             </button>
@@ -380,6 +385,11 @@ $clinica = $resultado->fetch_assoc();
     </div>
 
 </div>
+
+
+<!-- JS para máscaras e utilitários -->
+<script src="assets/js/main.js"></script>
+<script src="assets/js/admin.js"></script>
 
 </body>
 
