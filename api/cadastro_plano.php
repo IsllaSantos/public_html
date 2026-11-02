@@ -24,10 +24,10 @@ $max_armazenamento_gb = !empty($_POST['max_armazenamento_gb'])
 $recursos = trim($_POST['recursos'] ?? '');
 $destaque = isset($_POST['destaque']) ? 1 : 0;
 
-/* VALIDAÇÃO */
-
 if (empty($nome) || $valor <= 0) {
-    die("Preencha o nome e um valor válido.");
+    $_SESSION['mensagem_sucesso'] = "Preencha o nome do plano e um valor válido.";
+    header("Location: ../admin.php?aba=planos");
+    exit;
 }
 
 /* Converte recursos (um por linha → separado por |) */
@@ -35,42 +35,44 @@ $recursos = implode('|', array_filter(
     array_map('trim', explode("\n", $recursos))
 ));
 
-/* INSERE */
+try {
+    /* INSERE */
+    $sql = "
+    INSERT INTO planos
+    (
+        nome,
+        descricao,
+        valor,
+        max_medicos,
+        max_armazenamento_gb,
+        recursos,
+        destaque
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ";
 
-$sql = "
-INSERT INTO planos
-(
-    nome,
-    descricao,
-    valor,
-    max_medicos,
-    max_armazenamento_gb,
-    recursos,
-    destaque
-)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "ssdiisi",
+        $nome,
+        $descricao,
+        $valor,
+        $max_medicos,
+        $max_armazenamento_gb,
+        $recursos,
+        $destaque
+    );
 
-$stmt = $conn->prepare($sql);
+    if ($stmt->execute()) {
+        $_SESSION['mensagem_sucesso'] = "Plano \"" . $nome . "\" cadastrado com sucesso!";
+    } else {
+        $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar plano: " . $stmt->error;
+    }
+    $stmt->close();
 
-$stmt->bind_param(
-    "ssdiisi",
-    $nome,
-    $descricao,
-    $valor,
-    $max_medicos,
-    $max_armazenamento_gb,
-    $recursos,
-    $destaque
-);
-
-if ($stmt->execute()) {
-
-    $_SESSION['mensagem_sucesso'] = "Plano cadastrado com sucesso!";
-    header("Location: ../admin.php?aba=planos");
-    exit;
-
-} else {
-
-    die("Erro ao cadastrar plano: " . $conn->error);
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar plano: " . $e->getMessage();
 }
+
+header("Location: ../admin.php?aba=planos");
+exit;

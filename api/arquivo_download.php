@@ -24,13 +24,47 @@ $arq = $st->get_result()->fetch_assoc();
 
 $permitido = false;
 if ($arq) {
-    if ($perfil === 'paciente' && intval($arq['id_paciente']) === $uid) {
+    $id_paciente_arq = intval($arq['id_paciente']);
+    $id_clinica_sessao = intval($_SESSION['id_clinica'] ?? 0);
+
+    if ($perfil === 'admin') {
         $permitido = true;
-    } elseif ($perfil === 'medico' && $arq['id_consulta']) {
-        $st = $conn->prepare("SELECT 1 FROM consulta WHERE id_consulta = ? AND id_medico = ?");
-        $st->bind_param("ii", $arq['id_consulta'], $uid);
+    } elseif ($perfil === 'paciente' && $id_paciente_arq === $uid) {
+        $permitido = true;
+    } elseif ($perfil === 'medico') {
+        if (!empty($arq['id_consulta'])) {
+            $st = $conn->prepare("SELECT 1 FROM consulta WHERE id_consulta = ? AND id_medico = ?");
+            $st->bind_param("ii", $arq['id_consulta'], $uid);
+            $st->execute();
+            if ($st->get_result()->num_rows > 0) {
+                $permitido = true;
+            }
+        }
+        if (!$permitido) {
+            // Permite se o paciente tem/teve consulta com este médico
+            $st = $conn->prepare("SELECT 1 FROM consulta WHERE id_paciente = ? AND id_medico = ? LIMIT 1");
+            $st->bind_param("ii", $id_paciente_arq, $uid);
+            $st->execute();
+            if ($st->get_result()->num_rows > 0) {
+                $permitido = true;
+            }
+        }
+        if (!$permitido && $id_clinica_sessao > 0) {
+            // Permite se o paciente pertence à mesma clínica do médico
+            $st = $conn->prepare("SELECT 1 FROM usuarios WHERE id_usuario = ? AND id_clinica = ?");
+            $st->bind_param("ii", $id_paciente_arq, $id_clinica_sessao);
+            $st->execute();
+            if ($st->get_result()->num_rows > 0) {
+                $permitido = true;
+            }
+        }
+    } elseif ($perfil === 'secretaria' && $id_clinica_sessao > 0) {
+        $st = $conn->prepare("SELECT 1 FROM usuarios WHERE id_usuario = ? AND id_clinica = ?");
+        $st->bind_param("ii", $id_paciente_arq, $id_clinica_sessao);
         $st->execute();
-        $permitido = $st->get_result()->num_rows > 0;
+        if ($st->get_result()->num_rows > 0) {
+            $permitido = true;
+        }
     }
 }
 

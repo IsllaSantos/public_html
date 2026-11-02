@@ -17,13 +17,17 @@ function showAdminTab(tab, event) {
     }
 
     /* Destaca o botão ativo */
-    document.querySelectorAll('nav button')
+    document.querySelectorAll('header nav button, nav button')
     .forEach(function(btn) {
-        btn.classList.remove('nav-active');
+        btn.classList.remove('active', 'nav-active');
+        var oc = btn.getAttribute('onclick') || '';
+        if (oc.indexOf("showAdminTab('" + tab + "'") !== -1) {
+            btn.classList.add('active');
+        }
     });
 
-    if (event && event.target) {
-        event.target.classList.add('nav-active');
+    if (tab === 'usuarios') {
+        prevenirAutofillNovoUsuario();
     }
 }
 
@@ -55,13 +59,12 @@ window.onload = function() {
     }
 
     /* Destaca o botão correto no nav */
-    document.querySelectorAll('nav button')
+    document.querySelectorAll('header nav button, nav button')
     .forEach(function(btn) {
-        if (
-            btn.textContent.trim().toLowerCase()
-            === getTabLabel(abaInicial)
-        ) {
-            btn.classList.add('nav-active');
+        btn.classList.remove('active', 'nav-active');
+        var oc = btn.getAttribute('onclick') || '';
+        if (oc.indexOf("showAdminTab('" + abaInicial + "'") !== -1) {
+            btn.classList.add('active');
         }
     });
 
@@ -73,7 +76,43 @@ window.onload = function() {
 
     /* Campos condicionais do perfil */
     alternarCamposPerfil();
+
+    /* Previne autofill com credenciais salvas no formulário de novo usuário */
+    prevenirAutofillNovoUsuario();
 };
+
+
+/* ==============================
+   PREVENÇÃO DE AUTOFILL (NOVO USUÁRIO)
+============================== */
+
+function prevenirAutofillNovoUsuario() {
+    var form = document.querySelector('form[action="api/cadastro_usuario.php"]');
+    if (!form) return;
+
+    var email = form.querySelector('input[name="email"]');
+    var senha = form.querySelector('input[name="senha"]');
+
+    function limpar() {
+        if (email && !email.dataset.userInteracted) email.value = '';
+        if (senha && !senha.dataset.userInteracted) senha.value = '';
+    }
+
+    [email, senha].forEach(function(input) {
+        if (!input || input.dataset.autofillBound) return;
+        input.dataset.autofillBound = 'true';
+        ['input', 'focus', 'keydown'].forEach(function(evt) {
+            input.addEventListener(evt, function() {
+                input.dataset.userInteracted = 'true';
+            });
+        });
+    });
+
+    limpar();
+    setTimeout(limpar, 60);
+    setTimeout(limpar, 200);
+    setTimeout(limpar, 500);
+}
 
 
 /* ==============================

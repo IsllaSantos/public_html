@@ -574,6 +574,8 @@ function avaliarSat() {
         tagSat.innerHTML = '<span class="vital-tag vital-tag-danger">⚠ Hipoxemia (<95%)</span>';
     } else {
         tagSat.innerHTML = '<span class="vital-tag vital-tag-normal">✓ Saturação Normal</span>';
+    }
+}
 /* ==============================
    AUTO-SAVE & RASCUNHO (LOCALSTORAGE)
 ============================== */

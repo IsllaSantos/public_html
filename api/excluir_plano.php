@@ -11,7 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $id_plano = intval($_POST['id_plano'] ?? 0);
-if ($id_plano <= 0) die("Plano inválido.");
+if ($id_plano <= 0) {
+    $_SESSION['mensagem_sucesso'] = "Plano inválido.";
+    header("Location: ../admin.php?aba=planos");
+    exit;
+}
 
 /* Verifica se há assinaturas vinculadas */
 
@@ -36,22 +40,19 @@ if ($row['total'] > 0) {
     exit;
 }
 
-/* Exclui */
+try {
+    $stmt = $conn->prepare("
+        DELETE FROM planos
+        WHERE id_plano = ?
+    ");
 
-$stmt = $conn->prepare("
-    DELETE FROM planos
-    WHERE id_plano = ?
-");
-
-$stmt->bind_param("i", $id_plano);
-
-if ($stmt->execute()) {
+    $stmt->bind_param("i", $id_plano);
+    $stmt->execute();
 
     $_SESSION['mensagem_sucesso'] = "Plano excluído com sucesso!";
-    header("Location: ../admin.php?aba=planos");
-    exit;
-
-} else {
-
-    die("Erro ao excluir plano: " . $conn->error);
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao excluir plano: " . $e->getMessage();
 }
+
+header("Location: ../admin.php?aba=planos");
+exit;

@@ -27,8 +27,9 @@ if (
     empty($senha) ||
     empty($perfil)
 ) {
-
-    die("Preencha todos os campos obrigatórios.");
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios do usuário.";
+    header("Location: ../admin.php?aba=usuarios");
+    exit;
 }
 
 
@@ -138,8 +139,9 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows > 0) {
-
-    die("E-mail já cadastrado.");
+    $_SESSION['mensagem_sucesso'] = "Este e-mail já está cadastrado no sistema.";
+    header("Location: ../admin.php?aba=usuarios");
+    exit;
 }
 
 
@@ -167,8 +169,9 @@ if (!empty($cpf)) {
     $resultado = $stmt->get_result();
 
     if ($resultado->num_rows > 0) {
-
-        die("CPF já cadastrado.");
+        $_SESSION['mensagem_sucesso'] = "Este CPF já está cadastrado no sistema.";
+        header("Location: ../admin.php?aba=usuarios");
+        exit;
     }
 }
 
@@ -267,20 +270,15 @@ $stmt->bind_param(
     $contato_emergencia_telefone
 );
 
-if ($stmt->execute()) {
-
-    $_SESSION['mensagem_sucesso'] = "Usuário cadastrado com sucesso!";
-
-    header(
-        "Location: ../admin.php?aba=usuarios"
-    );
-
-    exit;
-
-} else {
-
-    die(
-        "Erro ao cadastrar usuário: " .
-        $conn->error
-    );
+try {
+    if ($stmt->execute()) {
+        $_SESSION['mensagem_sucesso'] = "Usuário cadastrado com sucesso!";
+    } else {
+        $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar usuário: " . $stmt->error;
+    }
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar usuário: " . $e->getMessage();
 }
+
+header("Location: ../admin.php?aba=usuarios");
+exit;

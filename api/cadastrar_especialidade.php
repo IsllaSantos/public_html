@@ -13,26 +13,35 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $nome = trim($_POST['nome'] ?? '');
 
 if (empty($nome)) {
-    die("Nome da especialidade é obrigatório.");
-}
-
-/* Verifica duplicata */
-$stmt = $conn->prepare("SELECT id_especialidade FROM especialidades WHERE nome = ?");
-$stmt->bind_param("s", $nome);
-$stmt->execute();
-
-if ($stmt->get_result()->num_rows > 0) {
-    die("Esta especialidade já existe.");
-}
-
-/* Insere */
-$stmt = $conn->prepare("INSERT INTO especialidades (nome, status) VALUES (?, 'ativa')");
-$stmt->bind_param("s", $nome);
-
-if ($stmt->execute()) {
-    $_SESSION['mensagem_sucesso'] = "Especialidade cadastrada com sucesso!";
+    $_SESSION['mensagem_sucesso'] = "Nome da especialidade é obrigatório.";
     header("Location: ../admin.php?aba=especialidades");
     exit;
-} else {
-    die("Erro ao cadastrar: " . $conn->error);
 }
+
+try {
+    /* Verifica duplicata */
+    $stmt = $conn->prepare("SELECT id_especialidade FROM especialidades WHERE LOWER(nome) = LOWER(?)");
+    $stmt->bind_param("s", $nome);
+    $stmt->execute();
+
+    if ($stmt->get_result()->num_rows > 0) {
+        $stmt->close();
+        $_SESSION['mensagem_sucesso'] = "Esta especialidade já existe.";
+        header("Location: ../admin.php?aba=especialidades");
+        exit;
+    }
+    $stmt->close();
+
+    /* Insere */
+    $stmt = $conn->prepare("INSERT INTO especialidades (nome, status) VALUES (?, 'ativa')");
+    $stmt->bind_param("s", $nome);
+    $stmt->execute();
+    $stmt->close();
+
+    $_SESSION['mensagem_sucesso'] = "Especialidade cadastrada com sucesso!";
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar especialidade: " . $e->getMessage();
+}
+
+header("Location: ../admin.php?aba=especialidades");
+exit;

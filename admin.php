@@ -22,6 +22,16 @@ $mensagemSucesso = $_SESSION['mensagem_sucesso'] ?? '';
 
 unset($_SESSION['mensagem_sucesso']);
 
+$isMensagemErro = (
+    stripos($mensagemSucesso, 'não') !== false ||
+    stripos($mensagemSucesso, 'erro') !== false ||
+    stripos($mensagemSucesso, 'inválid') !== false ||
+    stripos($mensagemSucesso, 'obrigat') !== false ||
+    stripos($mensagemSucesso, 'já cadastrado') !== false ||
+    stripos($mensagemSucesso, 'já existe') !== false ||
+    stripos($mensagemSucesso, 'sem permissão') !== false
+);
+
 
 /* ==============================
    BANCO DE DADOS
@@ -470,7 +480,7 @@ if ($especialidades) {
             <div class="card">
 
                 <p
-                    style="color:green;font-weight:bold;"
+                    style="color:<?= $isMensagemErro ? '#dc2626' : '#16a34a' ?>;font-weight:bold;"
                 >
 
                     <?= htmlspecialchars($mensagemSucesso) ?>
@@ -932,7 +942,7 @@ if ($especialidades) {
             <div class="card">
 
                 <p
-                    style="color:green;font-weight:bold;"
+                    style="color:<?= $isMensagemErro ? '#dc2626' : '#16a34a' ?>;font-weight:bold;"
                 >
 
                     <?= htmlspecialchars($mensagemSucesso) ?>
@@ -957,6 +967,7 @@ if ($especialidades) {
             <form
                 action="api/cadastro_usuario.php"
                 method="POST"
+                autocomplete="off"
             >
 
 
@@ -993,6 +1004,7 @@ if ($especialidades) {
                             type="email"
                             name="email"
                             class="field"
+                            autocomplete="off"
                             required
                         >
 
@@ -1011,6 +1023,7 @@ if ($especialidades) {
                             type="password"
                             name="senha"
                             class="field"
+                            autocomplete="new-password"
                             required
                         >
 
@@ -1838,7 +1851,7 @@ if ($especialidades) {
             <div class="card">
 
                 <p
-                    style="color:green;font-weight:bold;"
+                    style="color:<?= $isMensagemErro ? '#dc2626' : '#16a34a' ?>;font-weight:bold;"
                 >
 
                     <?= htmlspecialchars($mensagemSucesso) ?>
@@ -2157,7 +2170,7 @@ if ($especialidades) {
             <div class="card">
 
                 <p
-                    style="color:green;font-weight:bold;"
+                    style="color:<?= $isMensagemErro ? '#dc2626' : '#16a34a' ?>;font-weight:bold;"
                 >
                     <?= htmlspecialchars($mensagemSucesso) ?>
                 </p>
@@ -2569,10 +2582,18 @@ if ($especialidades) {
 ============================== -->
 
 <section id="especialidades"
-    class="admin-tab"
-    style="display:none;">
+    class="admin-tab <?= $abaInicial === 'especialidades' ? 'active' : '' ?>"
+    <?= $abaInicial === 'especialidades' ? '' : 'style="display:none;"' ?>>
 
     <div class="container">
+
+        <?php if (!empty($mensagemSucesso)): ?>
+            <div class="card">
+                <p style="color:<?= $isMensagemErro ? '#dc2626' : '#16a34a' ?>;font-weight:bold;">
+                    <?= htmlspecialchars($mensagemSucesso) ?>
+                </p>
+            </div>
+        <?php endif; ?>
 
         <!-- CADASTRAR -->
         <div class="card">
@@ -2648,7 +2669,7 @@ if ($especialidades) {
 ============================== -->
 
 <script src="assets/js/main.js"></script>
-<script src="assets/js/admin.js"></script>
+<script src="assets/js/admin.js?v=<?= filemtime(__DIR__ . '/assets/js/admin.js') ?>"></script>
 
 </body>
 

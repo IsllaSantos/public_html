@@ -13,7 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id_clinica = $_SESSION['id_clinica'];
 
 if (empty($id_clinica)) {
-    die("Erro: secretária sem clínica vinculada.");
+    $_SESSION['mensagem_sucesso'] = "Erro: secretária sem clínica vinculada.";
+    header("Location: ../secretaria.php?aba=medicos");
+    exit;
 }
 
 
@@ -64,83 +66,96 @@ if (
     empty($crm) ||
     empty($especialidade)
 ) {
-    die("Preencha todos os campos obrigatórios.");
-}
-
-
-/* VERIFICA E-MAIL DUPLICADO */
-
-$stmt = $conn->prepare("SELECT id_usuario FROM usuarios WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-
-if ($stmt->get_result()->num_rows > 0) {
-    die("E-mail já cadastrado.");
-}
-
-
-/* VERIFICA CPF DUPLICADO */
-
-if (!empty($cpf)) {
-    $stmtCpf = $conn->prepare("SELECT id_usuario FROM usuarios WHERE cpf = ?");
-    $stmtCpf->bind_param("s", $cpf);
-    $stmtCpf->execute();
-
-    if ($stmtCpf->get_result()->num_rows > 0) {
-        die("CPF já cadastrado.");
-    }
-}
-
-
-/* INSERE */
-
-$senhaHash = password_hash($senha, PASSWORD_DEFAULT);
-
-$sql = "
-INSERT INTO usuarios
-(
-    nome, email, senha, perfil, id_clinica,
-    cpf, rg, data_nascimento, sexo, telefone, celular,
-    crm, uf_crm, especialidade,
-    horario_inicio, horario_fim, duracao_consulta,
-    status
-)
-VALUES
-(
-    ?, ?, ?, 'medico', ?,
-    ?, ?, ?, ?, ?, ?,
-    ?, ?, ?,
-    ?, ?, ?,
-    'ativo'
-)
-";
-
-$stmt = $conn->prepare($sql);
-
-$stmt->bind_param(
-    "sssisssssssssssi",
-    $nome,
-    $email,
-    $senhaHash,
-    $id_clinica,
-    $cpf,
-    $rg,
-    $data_nascimento,
-    $sexo,
-    $telefone,
-    $celular,
-    $crm,
-    $uf_crm,
-    $especialidade,
-    $horario_inicio,
-    $horario_fim,
-    $duracao_consulta
-);
-
-if ($stmt->execute()) {
-    $_SESSION['mensagem_sucesso'] = "Médico cadastrado com sucesso!";
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios do médico (Nome, E-mail, Senha, CRM e Especialidade).";
     header("Location: ../secretaria.php?aba=medicos");
     exit;
-} else {
-    die("Erro ao cadastrar médico: " . $conn->error);
 }
+
+
+try {
+    /* VERIFICA E-MAIL DUPLICADO */
+    $stmt = $conn->prepare("SELECT id_usuario FROM usuarios WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+
+    if ($stmt->get_result()->num_rows > 0) {
+        $stmt->close();
+        $_SESSION['mensagem_sucesso'] = "Este e-mail já está cadastrado no sistema.";
+        header("Location: ../secretaria.php?aba=medicos");
+        exit;
+    }
+    $stmt->close();
+
+
+    /* VERIFICA CPF DUPLICADO */
+    if (!empty($cpf)) {
+        $stmtCpf = $conn->prepare("SELECT id_usuario FROM usuarios WHERE cpf = ?");
+        $stmtCpf->bind_param("s", $cpf);
+        $stmtCpf->execute();
+
+        if ($stmtCpf->get_result()->num_rows > 0) {
+            $stmtCpf->close();
+            $_SESSION['mensagem_sucesso'] = "Este CPF já está cadastrado no sistema.";
+            header("Location: ../secretaria.php?aba=medicos");
+            exit;
+        }
+        $stmtCpf->close();
+    }
+
+
+    /* INSERE */
+    $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
+
+    $sql = "
+    INSERT INTO usuarios
+    (
+        nome, email, senha, perfil, id_clinica,
+        cpf, rg, data_nascimento, sexo, telefone, celular,
+        crm, uf_crm, especialidade,
+        horario_inicio, horario_fim, duracao_consulta,
+        status
+    )
+    VALUES
+    (
+        ?, ?, ?, 'medico', ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?,
+        ?, ?, ?,
+        'ativo'
+    )
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "sssisssssssssssi",
+        $nome,
+        $email,
+        $senhaHash,
+        $id_clinica,
+        $cpf,
+        $rg,
+        $data_nascimento,
+        $sexo,
+        $telefone,
+        $celular,
+        $crm,
+        $uf_crm,
+        $especialidade,
+        $horario_inicio,
+        $horario_fim,
+        $duracao_consulta
+    );
+
+    if ($stmt->execute()) {
+        $_SESSION['mensagem_sucesso'] = "Médico \"" . $nome . "\" cadastrado com sucesso!";
+    } else {
+        $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar médico: " . $stmt->error;
+    }
+    $stmt->close();
+
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar médico: " . $e->getMessage();
+}
+
+header("Location: ../secretaria.php?aba=medicos");
+exit;

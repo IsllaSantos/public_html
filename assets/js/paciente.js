@@ -336,8 +336,9 @@ function carregarMinhasReceitas() {
             return;
         }
 
+        window.__receitasCache = receitas;
         var html = '<div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:20px;">';
-        receitas.forEach(function(rec) {
+        receitas.forEach(function(rec, index) {
             html += '<div class="card" style="margin-bottom:0;border-top:3px solid var(--gold);">';
             html += '<div class="top-bar" style="margin-bottom:12px;">';
             html += '<div><strong>Dr(a). ' + escapeHtml(rec.nome_medico) + '</strong><div style="font-size:0.8rem;color:var(--text-muted);">' + escapeHtml(rec.especialidade || 'Médico') + ' • CRM: ' + escapeHtml(rec.crm_medico || '—') + '-' + escapeHtml(rec.uf_medico || '') + '</div></div>';
@@ -358,8 +359,7 @@ function carregarMinhasReceitas() {
                 html += '</div>';
             }
 
-            var recJson = JSON.stringify(rec).replace(/"/g, '&quot;');
-            html += '<button type="button" class="btn btn-secondary" style="width:100%;font-size:0.86rem;padding:9px;margin-top:6px;" onclick="imprimirReceitaPaciente(' + recJson + ')">🖨️ Visualizar / Imprimir Documento</button>';
+            html += '<button type="button" class="btn btn-secondary" style="width:100%;font-size:0.86rem;padding:9px;margin-top:6px;" onclick="imprimirReceitaPacientePorIndice(' + index + ')">🖨️ Visualizar / Imprimir Documento</button>';
             html += '</div>';
         });
         html += '</div>';
@@ -369,6 +369,12 @@ function carregarMinhasReceitas() {
     .catch(function() {
         container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px;">Erro ao carregar suas prescrições.</p>';
     });
+}
+
+function imprimirReceitaPacientePorIndice(index) {
+    if (window.__receitasCache && window.__receitasCache[index]) {
+        imprimirReceitaPaciente(window.__receitasCache[index]);
+    }
 }
 
 function imprimirReceitaPaciente(rec) {

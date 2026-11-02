@@ -202,7 +202,7 @@ $estados = [
 ============================== */
 
 $listaEspecialidades = [];
-if ($abaInicial === 'medicos') {
+if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
     $resEspec = $conn->query("
         SELECT id_especialidade, nome
         FROM especialidades
@@ -286,6 +286,25 @@ if ($abaInicial === 'medicos') {
         </p>
 
     </div>
+
+    <?php if (!empty($mensagemSucesso)): ?>
+        <?php
+            $isErro = (
+                stripos($mensagemSucesso, 'não') !== false ||
+                stripos($mensagemSucesso, 'erro') !== false ||
+                stripos($mensagemSucesso, 'inválid') !== false ||
+                stripos($mensagemSucesso, 'sem permissão') !== false ||
+                stripos($mensagemSucesso, 'já cadastrado') !== false ||
+                stripos($mensagemSucesso, 'obrigat') !== false
+            );
+        ?>
+        <div class="card" style="margin-bottom:18px;border-left:4px solid <?= $isErro ? 'var(--danger,#dc2626)' : 'var(--success,#16a34a)' ?>;padding:12px 18px;">
+            <p style="color:<?= $isErro ? 'var(--danger,#dc2626)' : 'var(--success,#16a34a)' ?>;font-weight:600;margin:0;display:flex;align-items:center;gap:8px;">
+                <span><?= $isErro ? '⚠' : '✓' ?></span>
+                <span><?= htmlspecialchars($mensagemSucesso) ?></span>
+            </p>
+        </div>
+    <?php endif; ?>
 
 </div>
 
@@ -465,6 +484,7 @@ if ($abaInicial === 'medicos') {
             <form
                 action="api/secretaria_cadastro_medico.php"
                 method="POST"
+                autocomplete="off"
             >
 
                 <h4 style="margin-bottom:15px;color:var(--gold);">Dados de Acesso</h4>
@@ -477,12 +497,12 @@ if ($abaInicial === 'medicos') {
 
                     <div class="field-group">
                         <label>E-mail *</label>
-                        <input type="email" name="email" class="field" required>
+                        <input type="email" name="email" class="field" autocomplete="off" required>
                     </div>
 
                     <div class="field-group">
                         <label>Senha *</label>
-                        <input type="password" name="senha" class="field" required>
+                        <input type="password" name="senha" class="field" autocomplete="new-password" required>
                     </div>
 
                 </div>
@@ -672,6 +692,7 @@ if ($abaInicial === 'medicos') {
             <form
                 action="api/secretaria_cadastro_paciente.php"
                 method="POST"
+                autocomplete="off"
             >
 
                 <h4 style="margin-bottom:15px;color:var(--gold);">Dados de Acesso</h4>
@@ -684,12 +705,12 @@ if ($abaInicial === 'medicos') {
 
                     <div class="field-group">
                         <label>E-mail *</label>
-                        <input type="email" name="email" class="field" required>
+                        <input type="email" name="email" class="field" autocomplete="off" required>
                     </div>
 
                     <div class="field-group">
                         <label>Senha *</label>
-                        <input type="password" name="senha" class="field" required>
+                        <input type="password" name="senha" class="field" autocomplete="new-password" required>
                     </div>
 
                 </div>
@@ -898,12 +919,12 @@ if ($abaInicial === 'medicos') {
         <?php endif; ?>
 
 
-        <!-- NOVA CONSULTA -->
+        <!-- AGENDAR CONSULTA (ESTILO PACIENTE + ESCOLHA DE PACIENTE) -->
 
         <div class="card">
 
             <div class="top-bar">
-                <h3>Nova Consulta</h3>
+                <h3>📅 Agendar Consulta</h3>
             </div>
 
             <form
@@ -914,83 +935,101 @@ if ($abaInicial === 'medicos') {
 
                 <div class="grid">
 
-                    <div class="field-group">
+                    <!-- PACIENTE (A única diferença: secretária escolhe o paciente) -->
+                    <div class="field-group" style="grid-column: 1 / -1;">
                         <label>Paciente *</label>
-                        <input type="text" placeholder="🔍 Filtrar paciente..." onkeyup="filtrarSelectPacientes(this)" class="field" style="margin-bottom:6px;min-height:36px;font-size:0.85rem;">
+                        <input type="text" id="filtroPaciente" placeholder="🔍 Filtrar paciente por nome ou CPF..."
+                            onkeyup="filtrarSelectPacientes(this)" class="field"
+                            style="margin-bottom:6px;min-height:36px;font-size:0.85rem;">
                         <select name="id_paciente" id="selectPacienteAgendamento" class="field" required>
-                            <option value="">Selecione o paciente</option>
+                            <option value="">Selecione o paciente...</option>
                             <?php foreach ($listaPacientesSelect as $p): ?>
                                 <option value="<?= $p['id_usuario'] ?>">
-                                    <?= htmlspecialchars($p['nome']) ?>
+                                    <?= htmlspecialchars($p['nome']) ?><?= !empty($p['cpf']) ? ' — CPF: ' . htmlspecialchars($p['cpf']) : '' ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
+                    <!-- ESPECIALIDADE -->
+                    <div class="field-group">
+                        <label>Especialidade</label>
+                        <select id="agEspecialidade" class="field" onchange="secretariaCarregarMedicos()">
+                            <option value="">Todas as especialidades</option>
+                            <?php foreach ($listaEspecialidades as $esp): ?>
+                                <option value="<?= htmlspecialchars($esp['nome']) ?>">
+                                    <?= htmlspecialchars($esp['nome']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- MÉDICO -->
                     <div class="field-group">
                         <label>Médico *</label>
-                        <select name="id_medico" id="slotMedico" class="field" required
-                            onchange="agendaResetSlots()">
-                            <option value="">Selecione</option>
+                        <select name="id_medico" id="agMedico" class="field" onchange="secretariaCarregarDatas()" required>
+                            <option value="">Selecione o médico...</option>
                             <?php foreach ($listaMedicosSelect as $m): ?>
-                                <option value="<?= $m['id_usuario'] ?>"
-                                    data-duracao="<?= intval($m['duracao_consulta'] ?? 30) ?>">
-                                    <?= htmlspecialchars($m['nome']) ?> — <?= htmlspecialchars($m['especialidade'] ?? '') ?>
+                                <option value="<?= $m['id_usuario'] ?>">
+                                    <?= htmlspecialchars($m['nome']) ?><?= !empty($m['especialidade']) ? ' — ' . htmlspecialchars($m['especialidade']) : '' ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
+                    <!-- DATA (Datas reais disponíveis da agenda do médico) -->
                     <div class="field-group">
-                        <label>Data *</label>
-                        <input type="date" id="slotData" class="field" required
-                            min="<?= date('Y-m-d') ?>"
-                            max="<?= date('Y-m-d', strtotime('+2 months')) ?>"
-                            onchange="agendaCarregarSlots()">
-                        <input type="hidden" name="data_consulta" id="hdnData">
-                    </div>
-
-                    <div class="field-group">
-                        <label>Horário disponível *</label>
-                        <select name="hora_consulta" id="slotHora" class="field" required disabled>
-                            <option value="">Selecione médico e data primeiro</option>
+                        <label>Data Disponível *</label>
+                        <select name="data_consulta" id="agData" class="field" onchange="secretariaCarregarHorarios()" disabled required>
+                            <option value="">Selecione o médico primeiro...</option>
                         </select>
                     </div>
 
-                    <div class="field-group full" id="slotsChipsContainer">
-                        <!-- Chips visuais inseridos dinamicamente -->
+                    <!-- HORÁRIO -->
+                    <div class="field-group">
+                        <label>Horário *</label>
+                        <select name="hora_consulta" id="agHorario" class="field" disabled required>
+                            <option value="">Selecione a data primeiro...</option>
+                        </select>
                     </div>
 
+                    <!-- TIPO DE ATENDIMENTO -->
                     <div class="field-group">
-                        <label>Tipo</label>
+                        <label>Tipo de Atendimento</label>
                         <select name="tipo_consulta" class="field">
                             <option value="presencial">Presencial</option>
                             <option value="telemedicina">Telemedicina</option>
                         </select>
                     </div>
 
+                    <!-- OBSERVAÇÕES -->
                     <div class="field-group">
                         <label>Observações</label>
-                        <input type="text" name="observacoes" class="field" placeholder="Opcional">
-                    </div>
-
-                    <div class="field-group full">
-                        <label>Motivo da Consulta *</label>
-                        <input type="text" name="motivo_consulta" class="field" placeholder="Ex: Dor de cabeça persistente, Exame de rotina..." required>
+                        <input type="text" name="observacoes" class="field" placeholder="Opcional (sala, orientações, etc.)">
                     </div>
 
                 </div>
 
+                <!-- CHIPS VISUAIS DE HORÁRIOS -->
+                <div id="slotsChipsContainer" style="margin-top:10px;"></div>
+
+                <!-- MOTIVO DA CONSULTA -->
+                <div class="textarea-group" style="margin-top:15px;">
+                    <label>Motivo da Consulta *</label>
+                    <textarea name="motivo_consulta" id="agMotivo" placeholder="Descreva brevemente o motivo da consulta..." required
+                        style="width:100%;min-height:75px;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-family:inherit;font-size:.95rem;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+
                 <br>
 
-                <button type="submit" class="confirm-btn">
-                    Agendar Consulta
+                <button type="submit" class="confirm-btn" id="btnAgendarSecretaria" disabled>
+                    ✓ Agendar Consulta
                 </button>
 
             </form>
 
-
         </div>
+
 
 
         <!-- LISTA -->

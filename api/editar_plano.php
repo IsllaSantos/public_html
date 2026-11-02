@@ -11,7 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $id_plano = intval($_POST['id_plano'] ?? 0);
-if ($id_plano <= 0) die("Plano inválido.");
+if ($id_plano <= 0) {
+    $_SESSION['mensagem_sucesso'] = "Plano inválido.";
+    header("Location: ../admin.php?aba=planos");
+    exit;
+}
 
 $nome = trim($_POST['nome'] ?? '');
 $descricao = trim($_POST['descricao'] ?? '');
@@ -27,53 +31,62 @@ $destaque = isset($_POST['destaque']) ? 1 : 0;
 $status = trim($_POST['status'] ?? 'ativo');
 
 if (empty($nome) || $valor <= 0) {
-    die("Preencha o nome e um valor válido.");
+    $_SESSION['mensagem_sucesso'] = "Preencha o nome do plano e um valor válido.";
+    header("Location: ../editar_plano.php?id=" . $id_plano);
+    exit;
 }
 
 if ($status !== 'ativo' && $status !== 'inativo') {
-    die("Status inválido.");
+    $_SESSION['mensagem_sucesso'] = "Status do plano inválido.";
+    header("Location: ../editar_plano.php?id=" . $id_plano);
+    exit;
 }
 
 $recursos = implode('|', array_filter(
     array_map('trim', explode("\n", $recursos))
 ));
 
-$sql = "
-UPDATE planos
-SET
-    nome = ?,
-    descricao = ?,
-    valor = ?,
-    max_medicos = ?,
-    max_armazenamento_gb = ?,
-    recursos = ?,
-    destaque = ?,
-    status = ?
-WHERE id_plano = ?
-";
+try {
+    $sql = "
+    UPDATE planos
+    SET
+        nome = ?,
+        descricao = ?,
+        valor = ?,
+        max_medicos = ?,
+        max_armazenamento_gb = ?,
+        recursos = ?,
+        destaque = ?,
+        status = ?
+    WHERE id_plano = ?
+    ";
 
-$stmt = $conn->prepare($sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "ssdiisisi",
+        $nome,
+        $descricao,
+        $valor,
+        $max_medicos,
+        $max_armazenamento_gb,
+        $recursos,
+        $destaque,
+        $status,
+        $id_plano
+    );
 
-$stmt->bind_param(
-    "ssdiisisi",
-    $nome,
-    $descricao,
-    $valor,
-    $max_medicos,
-    $max_armazenamento_gb,
-    $recursos,
-    $destaque,
-    $status,
-    $id_plano
-);
+    if ($stmt->execute()) {
+        $_SESSION['mensagem_sucesso'] = "Plano \"" . $nome . "\" atualizado com sucesso!";
+        header("Location: ../admin.php?aba=planos");
+        exit;
+    } else {
+        $_SESSION['mensagem_sucesso'] = "Erro ao editar plano: " . $stmt->error;
+        header("Location: ../editar_plano.php?id=" . $id_plano);
+        exit;
+    }
 
-if ($stmt->execute()) {
-
-    $_SESSION['mensagem_sucesso'] = "Plano atualizado com sucesso!";
-    header("Location: ../admin.php?aba=planos");
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao editar plano: " . $e->getMessage();
+    header("Location: ../editar_plano.php?id=" . $id_plano);
     exit;
-
-} else {
-
-    die("Erro ao editar plano: " . $conn->error);
 }

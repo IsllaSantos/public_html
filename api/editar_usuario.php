@@ -32,7 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id_usuario = intval($_POST['id_usuario'] ?? 0);
 
 if ($id_usuario <= 0) {
-    die("Usuário inválido.");
+    $_SESSION['mensagem_sucesso'] = "Usuário inválido.";
+    header("Location: " . $urlRetorno);
+    exit;
 }
 
 /* Secretária: só edita médicos/pacientes da própria clínica; perfil e clínica não mudam */
@@ -51,9 +53,12 @@ if ($ehSecretaria) {
     $stmtChk->bind_param("ii", $id_usuario, $_SESSION['id_clinica']);
     $stmtChk->execute();
     $alvo = $stmtChk->get_result()->fetch_assoc();
+    $stmtChk->close();
 
     if (!$alvo) {
-        die("Sem permissão para editar este usuário.");
+        $_SESSION['mensagem_sucesso'] = "Sem permissão para editar este usuário.";
+        header("Location: " . $urlRetorno);
+        exit;
     }
 
     $perfilFixo = $alvo['perfil'];
@@ -77,7 +82,9 @@ if (
     empty($email) ||
     empty($perfil)
 ) {
-    die("Preencha os campos obrigatórios.");
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios do usuário.";
+    header("Location: ../editar_usuario.php?id=" . $id_usuario);
+    exit;
 }
 
 
@@ -178,7 +185,9 @@ if (
     $status !== 'ativo' &&
     $status !== 'inativo'
 ) {
-    die("Status inválido.");
+    $_SESSION['mensagem_sucesso'] = "Status do usuário inválido.";
+    header("Location: ../editar_usuario.php?id=" . $id_usuario);
+    exit;
 }
 
 
@@ -206,7 +215,9 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows > 0) {
-    die("Este e-mail já está cadastrado em outro usuário.");
+    $_SESSION['mensagem_sucesso'] = "Este e-mail já está cadastrado em outro usuário.";
+    header("Location: ../editar_usuario.php?id=" . $id_usuario);
+    exit;
 }
 
 
@@ -236,7 +247,9 @@ if (!empty($cpf)) {
     $resultado = $stmt->get_result();
 
     if ($resultado->num_rows > 0) {
-        die("Este CPF já está cadastrado em outro usuário.");
+        $_SESSION['mensagem_sucesso'] = "Este CPF já está cadastrado em outro usuário.";
+        header("Location: ../editar_usuario.php?id=" . $id_usuario);
+        exit;
     }
 }
 
@@ -370,17 +383,18 @@ if ($senha_nova) {
 }
 
 
-if ($stmt->execute()) {
-
-    $_SESSION['mensagem_sucesso'] = "Usuário atualizado com sucesso!";
-
-    header("Location: " . $urlRetorno);
+try {
+    if ($stmt->execute()) {
+        $_SESSION['mensagem_sucesso'] = "Usuário atualizado com sucesso!";
+        header("Location: " . $urlRetorno);
+        exit;
+    } else {
+        $_SESSION['mensagem_sucesso'] = "Erro ao editar usuário: " . $stmt->error;
+        header("Location: ../editar_usuario.php?id=" . $id_usuario);
+        exit;
+    }
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao editar usuário: " . $e->getMessage();
+    header("Location: ../editar_usuario.php?id=" . $id_usuario);
     exit;
-
-} else {
-
-    die(
-        "Erro ao editar usuário: " .
-        $conn->error
-    );
 }

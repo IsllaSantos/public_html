@@ -13,7 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id_clinica = $_SESSION['id_clinica'];
 
 if (empty($id_clinica)) {
-    die("Erro: secretária sem clínica vinculada.");
+    $_SESSION['mensagem_sucesso'] = "Erro: secretária sem clínica vinculada.";
+    header("Location: ../secretaria.php?aba=pacientes");
+    exit;
 }
 
 
@@ -87,7 +89,9 @@ if (
     empty($email) ||
     empty($senha)
 ) {
-    die("Preencha todos os campos obrigatórios.");
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios.";
+    header("Location: ../secretaria.php?aba=pacientes");
+    exit;
 }
 
 
@@ -98,7 +102,9 @@ $stmt->bind_param("s", $email);
 $stmt->execute();
 
 if ($stmt->get_result()->num_rows > 0) {
-    die("E-mail já cadastrado.");
+    $_SESSION['mensagem_sucesso'] = "E-mail já cadastrado.";
+    header("Location: ../secretaria.php?aba=pacientes");
+    exit;
 }
 
 
@@ -110,7 +116,9 @@ if (!empty($cpf)) {
     $stmtCpf->execute();
 
     if ($stmtCpf->get_result()->num_rows > 0) {
-        die("CPF já cadastrado.");
+        $_SESSION['mensagem_sucesso'] = "CPF já cadastrado.";
+        header("Location: ../secretaria.php?aba=pacientes");
+        exit;
     }
 }
 
@@ -172,5 +180,7 @@ if ($stmt->execute()) {
     header("Location: ../secretaria.php?aba=pacientes");
     exit;
 } else {
-    die("Erro ao cadastrar paciente: " . $conn->error);
+    $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar paciente: " . $conn->error;
+    header("Location: ../secretaria.php?aba=pacientes");
+    exit;
 }

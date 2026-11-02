@@ -5,9 +5,19 @@ require_once('config/database.php');
 
 verificarPerfil('admin');
 
+$mensagemSucesso = $_SESSION['mensagem_sucesso'] ?? '';
+unset($_SESSION['mensagem_sucesso']);
+$isMensagemErro = (
+    stripos($mensagemSucesso, 'não') !== false ||
+    stripos($mensagemSucesso, 'erro') !== false ||
+    stripos($mensagemSucesso, 'inválid') !== false ||
+    stripos($mensagemSucesso, 'obrigat') !== false
+);
+
 $id_plano = intval($_GET['id'] ?? 0);
 
 if ($id_plano <= 0) {
+    $_SESSION['mensagem_sucesso'] = "Plano inválido.";
     header("Location: admin.php?aba=planos");
     exit;
 }
@@ -18,7 +28,9 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows === 0) {
-    die("Plano não encontrado.");
+    $_SESSION['mensagem_sucesso'] = "Plano não encontrado.";
+    header("Location: admin.php?aba=planos");
+    exit;
 }
 
 $plano = $resultado->fetch_assoc();
@@ -88,6 +100,13 @@ $recursosTexto = str_replace('|', "\n", $plano['recursos'] ?? '');
                 <?= htmlspecialchars($plano['nome']) ?>
             </span>
         </h2>
+
+        <?php if (!empty($mensagemSucesso)): ?>
+            <div style="background:<?= $isMensagemErro ? 'var(--danger-light,#fee2e2)' : '#dcfce7' ?>;border:1px solid <?= $isMensagemErro ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)' ?>;color:<?= $isMensagemErro ? 'var(--danger,#dc2626)' : '#16a34a' ?>;padding:12px 16px;border-radius:var(--radius-md,8px);margin:14px 0;font-size:0.9rem;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.1rem;font-weight:bold;"><?= $isMensagemErro ? '⚠' : '✓' ?></span>
+                <span><?= htmlspecialchars($mensagemSucesso) ?></span>
+            </div>
+        <?php endif; ?>
 
         <br>
 

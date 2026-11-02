@@ -11,12 +11,12 @@ verificarPerfil('admin');
 $id_clinica = intval($_POST['id_clinica'] ?? 0);
 
 if ($id_clinica <= 0) {
-    die("Clínica inválida.");
+    $_SESSION['mensagem_sucesso'] = "Clínica inválida.";
+    header("Location: ../admin.php?aba=clinicas");
+    exit;
 }
 
-
 /* RECEBE OS DADOS */
-
 $nome = trim($_POST['nome'] ?? '');
 $cnpj = preg_replace('/\D/', '', trim($_POST['cnpj'] ?? ''));
 $telefone = preg_replace('/\D/', '', trim($_POST['telefone'] ?? ''));
@@ -30,106 +30,88 @@ $cidade = trim($_POST['cidade'] ?? '');
 $estado = trim($_POST['estado'] ?? '');
 $status = trim($_POST['status'] ?? 'ativa');
 
-
 /* VALIDAÇÃO */
-
-if (
-    empty($nome) ||
-    empty($cnpj)
-) {
-    die("Preencha os campos obrigatórios.");
+if (empty($nome) || empty($cnpj)) {
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios da clínica.";
+    header("Location: ../editar_clinica.php?id=" . $id_clinica);
+    exit;
 }
-
 
 /* VALIDA STATUS */
-
-if (
-    $status !== 'ativa' &&
-    $status !== 'inativa'
-) {
-    die("Status inválido.");
+if ($status !== 'ativa' && $status !== 'inativa') {
+    $_SESSION['mensagem_sucesso'] = "Status da clínica inválido.";
+    header("Location: ../editar_clinica.php?id=" . $id_clinica);
+    exit;
 }
 
+try {
+    /* VERIFICA CNPJ (Ignorando a própria clínica) */
+    $sql = "
+    SELECT id_clinica
+    FROM clinica
+    WHERE cnpj = ?
+    AND id_clinica <> ?
+    ";
 
-/* VERIFICA CNPJ
-   Ignorando a própria clínica */
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("si", $cnpj, $id_clinica);
+    $stmt->execute();
+    $resultado = $stmt->get_result();
 
-$sql = "
-SELECT id_clinica
-FROM clinica
-WHERE cnpj = ?
-AND id_clinica <> ?
-";
+    if ($resultado->num_rows > 0) {
+        $stmt->close();
+        $_SESSION['mensagem_sucesso'] = "Este CNPJ já está cadastrado em outra clínica.";
+        header("Location: ../editar_clinica.php?id=" . $id_clinica);
+        exit;
+    }
+    $stmt->close();
 
-$stmt = $conn->prepare($sql);
+    /* ATUALIZA */
+    $sql = "
+    UPDATE clinica
+    SET
+        nome = ?,
+        cnpj = ?,
+        telefone = ?,
+        email = ?,
+        cep = ?,
+        endereco = ?,
+        numero = ?,
+        complemento = ?,
+        bairro = ?,
+        cidade = ?,
+        estado = ?,
+        status = ?
+    WHERE id_clinica = ?
+    ";
 
-$stmt->bind_param(
-    "si",
-    $cnpj,
-    $id_clinica
-);
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "ssssssssssssi",
+        $nome,
+        $cnpj,
+        $telefone,
+        $email,
+        $cep,
+        $endereco,
+        $numero,
+        $complemento,
+        $bairro,
+        $cidade,
+        $estado,
+        $status,
+        $id_clinica
+    );
 
-$stmt->execute();
+    $stmt->execute();
+    $stmt->close();
 
-$resultado = $stmt->get_result();
-
-if ($resultado->num_rows > 0) {
-    die("Este CNPJ já está cadastrado em outra clínica.");
-}
-
-
-/* ATUALIZA */
-
-$sql = "
-UPDATE clinica
-SET
-    nome = ?,
-    cnpj = ?,
-    telefone = ?,
-    email = ?,
-    cep = ?,
-    endereco = ?,
-    numero = ?,
-    complemento = ?,
-    bairro = ?,
-    cidade = ?,
-    estado = ?,
-    status = ?
-WHERE id_clinica = ?
-";
-
-$stmt = $conn->prepare($sql);
-
-$stmt->bind_param(
-    "ssssssssssssi",
-    $nome,
-    $cnpj,
-    $telefone,
-    $email,
-    $cep,
-    $endereco,
-    $numero,
-    $complemento,
-    $bairro,
-    $cidade,
-    $estado,
-    $status,
-    $id_clinica
-);
-
-
-if ($stmt->execute()) {
-
-
-    $_SESSION['mensagem_sucesso'] = "Clínica atualizada com sucesso!";
-
+    $_SESSION['mensagem_sucesso'] = "Clínica \"" . $nome . "\" atualizada com sucesso!";
     header("Location: ../admin.php?aba=clinicas");
     exit;
 
-} else {
-
-    die(
-        "Erro ao editar clínica: " .
-        $conn->error
-    );
+} catch (Throwable $e) {
+    $_SESSION['mensagem_sucesso'] = "Erro ao editar clínica: " . $e->getMessage();
+    header("Location: ../editar_clinica.php?id=" . $id_clinica);
+    exit;
 }

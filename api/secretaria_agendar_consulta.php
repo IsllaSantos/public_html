@@ -13,7 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id_clinica = $_SESSION['id_clinica'];
 
 if (empty($id_clinica)) {
-    die("Erro: secretária sem clínica vinculada.");
+    $_SESSION['mensagem_sucesso'] = "Erro: secretária sem clínica vinculada.";
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
 }
 
 
@@ -33,7 +35,9 @@ if (
     empty($data_consulta) ||
     empty($hora_consulta)
 ) {
-    die("Preencha todos os campos obrigatórios.");
+    $_SESSION['mensagem_sucesso'] = "Preencha todos os campos obrigatórios.";
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
 }
 
 
@@ -47,7 +51,9 @@ $stmt->bind_param("ii", $id_paciente, $id_clinica);
 $stmt->execute();
 
 if ($stmt->get_result()->num_rows === 0) {
-    die("Paciente não pertence a esta clínica.");
+    $_SESSION['mensagem_sucesso'] = "Erro: Paciente não pertence a esta clínica.";
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
 }
 
 
@@ -61,7 +67,22 @@ $stmt->bind_param("ii", $id_medico, $id_clinica);
 $stmt->execute();
 
 if ($stmt->get_result()->num_rows === 0) {
-    die("Médico não pertence a esta clínica.");
+    $_SESSION['mensagem_sucesso'] = "Erro: Médico não pertence a esta clínica.";
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
+}
+
+/* VERIFICA CONFLITO DE HORÁRIO DO MÉDICO */
+$stmtConflito = $conn->prepare("
+    SELECT id_consulta FROM consulta
+    WHERE id_medico = ? AND data_consulta = ? AND hora_consulta = ? AND status != 'cancelada'
+");
+$stmtConflito->bind_param("iss", $id_medico, $data_consulta, $hora_consulta);
+$stmtConflito->execute();
+if ($stmtConflito->get_result()->num_rows > 0) {
+    $_SESSION['mensagem_sucesso'] = "Erro: O médico já possui uma consulta agendada para este dia e horário.";
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
 }
 
 
@@ -100,5 +121,7 @@ if ($stmt->execute()) {
     header("Location: ../secretaria.php?aba=agendamentos");
     exit;
 } else {
-    die("Erro ao agendar consulta: " . $conn->error);
+    $_SESSION['mensagem_sucesso'] = "Erro ao agendar consulta: " . $conn->error;
+    header("Location: ../secretaria.php?aba=agendamentos");
+    exit;
 }

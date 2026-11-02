@@ -1,5 +1,5 @@
 <?php
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -9,49 +9,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/database.php';
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-if (!isset($_SESSION['user_id'])) {
+$userId = $_SESSION['id_usuario'] ?? $_SESSION['user_id'] ?? null;
+$perfil = $_SESSION['perfil'] ?? $_SESSION['user_type'] ?? null;
+
+if (!$userId || !$perfil) {
+    http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Não autenticado']);
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
-$user_type = $_SESSION['user_type'];
+$idClinica = intval($_SESSION['id_clinica'] ?? 0);
+$userId = intval($userId);
 
 try {
-    if ($user_type === 'paciente') {
-        $stmt = $pdo->prepare("
-            SELECT c.*, m.nome_completo as medico_nome, m.especialidade 
+    $consultas = [];
+
+    if ($perfil === 'paciente') {
+        $sql = "
+            SELECT 
+                c.*,
+                m.nome AS medico_nome,
+                m.crm AS medico_crm,
+                m.uf_crm AS medico_uf_crm,
+                COALESCE(esp.nome, 'Clínico Geral') AS especialidade
             FROM consulta c
-            INNER JOIN medico m ON c.id_medico = m.id_medico
+            INNER JOIN usuarios m ON c.id_medico = m.id_usuario
+            LEFT JOIN especialidade esp ON m.id_especialidade = esp.id_especialidade
             WHERE c.id_paciente = ?
             ORDER BY c.data_consulta DESC, c.hora_consulta DESC
-            LIMIT 20
-        ");
-        $stmt->execute([$user_id]);
-    } elseif ($user_type === 'medico' || $user_type === 'recepcionista' || $user_type === 'admin') {
-        $stmt = $pdo->prepare("
-            SELECT c.*, p.nome_completo as paciente_nome 
+            LIMIT 50
+        ";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $consultas[] = $row;
+        }
+    } elseif ($perfil === 'medico') {
+        $sql = "
+            SELECT 
+                c.*,
+                p.nome AS paciente_nome,
+                p.cpf AS paciente_cpf,
+                p.telefone AS paciente_telefone,
+                p.celular AS paciente_celular
             FROM consulta c
-            INNER JOIN paciente p ON c.id_paciente = p.id_paciente
+            INNER JOIN usuarios p ON c.id_paciente = p.id_usuario
             WHERE c.id_medico = ?
             ORDER BY c.data_consulta DESC, c.hora_consulta DESC
-            LIMIT 20
-        ");
-        $stmt->execute([$user_id]);
+            LIMIT 50
+        ";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $consultas[] = $row;
+        }
+    } elseif ($perfil === 'secretaria' && $idClinica > 0) {
+        $sql = "
+            SELECT 
+                c.*,
+                p.nome AS paciente_nome,
+                m.nome AS medico_nome,
+                COALESCE(esp.nome, 'Clínico Geral') AS especialidade
+            FROM consulta c
+            INNER JOIN usuarios p ON c.id_paciente = p.id_usuario
+            INNER JOIN usuarios m ON c.id_medico = m.id_usuario
+            LEFT JOIN especialidade esp ON m.id_especialidade = esp.id_especialidade
+            WHERE p.id_clinica = ?
+            ORDER BY c.data_consulta DESC, c.hora_consulta DESC
+            LIMIT 50
+        ";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $idClinica);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $consultas[] = $row;
+        }
+    } elseif ($perfil === 'admin') {
+        $sql = "
+            SELECT 
+                c.*,
+                p.nome AS paciente_nome,
+                m.nome AS medico_nome,
+                cl.nome AS clinica_nome
+            FROM consulta c
+            INNER JOIN usuarios p ON c.id_paciente = p.id_usuario
+            INNER JOIN usuarios m ON c.id_medico = m.id_usuario
+            LEFT JOIN clinicas cl ON p.id_clinica = cl.id_clinica
+            ORDER BY c.data_consulta DESC, c.hora_consulta DESC
+            LIMIT 50
+        ";
+        $res = $conn->query($sql);
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $consultas[] = $row;
+            }
+        }
     } else {
         echo json_encode(['success' => false, 'message' => 'Tipo de usuário inválido']);
         exit;
     }
-    
-    $consultas = $stmt->fetchAll();
-    echo json_encode(['success' => true, 'consultas' => $consultas]);
-    
-} catch(PDOException $e) {
+
+    echo json_encode(['success' => true, 'consultas' => $consultas], JSON_UNESCAPED_UNICODE);
+
+} catch (Throwable $e) {
     error_log('Erro ao buscar consultas: ' . $e->getMessage());
+    http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Erro ao carregar consultas']);
 }
-?>

@@ -15,9 +15,21 @@ $urlVoltar = $ehSecretaria
     ? 'secretaria.php?aba=' . (($_GET['aba'] ?? '') === 'pacientes' ? 'pacientes' : 'medicos')
     : 'admin.php?aba=usuarios';
 
+$mensagemSucesso = $_SESSION['mensagem_sucesso'] ?? '';
+unset($_SESSION['mensagem_sucesso']);
+$isMensagemErro = (
+    stripos($mensagemSucesso, 'não') !== false ||
+    stripos($mensagemSucesso, 'erro') !== false ||
+    stripos($mensagemSucesso, 'inválid') !== false ||
+    stripos($mensagemSucesso, 'sem permissão') !== false ||
+    stripos($mensagemSucesso, 'já cadastrado') !== false ||
+    stripos($mensagemSucesso, 'obrigat') !== false
+);
+
 $id_usuario = intval($_GET['id'] ?? 0);
 
 if ($id_usuario <= 0) {
+    $_SESSION['mensagem_sucesso'] = "Usuário inválido.";
     header("Location: " . $urlVoltar);
     exit;
 }
@@ -51,7 +63,9 @@ $stmt->execute();
 $resultado = $stmt->get_result();
 
 if ($resultado->num_rows === 0) {
-    die("Usuário não encontrado.");
+    $_SESSION['mensagem_sucesso'] = "Usuário não encontrado.";
+    header("Location: " . $urlVoltar);
+    exit;
 }
 
 $user = $resultado->fetch_assoc();
@@ -169,6 +183,13 @@ if ($resEspec) {
             | Cadastrado em: <?= date('d/m/Y', strtotime($user['data_cadastro'])) ?>
         </p>
 
+        <?php if (!empty($mensagemSucesso)): ?>
+            <div style="background:<?= $isMensagemErro ? 'var(--danger-light,#fee2e2)' : '#dcfce7' ?>;border:1px solid <?= $isMensagemErro ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)' ?>;color:<?= $isMensagemErro ? 'var(--danger,#dc2626)' : '#16a34a' ?>;padding:12px 16px;border-radius:var(--radius-md,8px);margin:14px 0;font-size:0.9rem;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.1rem;font-weight:bold;"><?= $isMensagemErro ? '⚠' : '✓' ?></span>
+                <span><?= htmlspecialchars($mensagemSucesso) ?></span>
+            </div>
+        <?php endif; ?>
+
         <br>
 
 
@@ -253,6 +274,7 @@ if ($resEspec) {
                         type="password"
                         name="senha"
                         class="field"
+                        autocomplete="new-password"
                         placeholder="••••••••"
                     >
 

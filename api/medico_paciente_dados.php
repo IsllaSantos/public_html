@@ -476,8 +476,8 @@ try {
         $stmtA = $conn->prepare("
             SELECT a.id_arquivo, a.id_consulta, a.titulo, a.nome_original, a.tamanho, a.criado_em
             FROM arquivo_paciente a
-            INNER JOIN consulta c ON c.id_consulta = a.id_consulta
-            WHERE a.id_paciente = ? AND c.id_medico = ?
+            LEFT JOIN consulta c ON c.id_consulta = a.id_consulta
+            WHERE a.id_paciente = ? AND (a.id_consulta IS NULL OR c.id_medico = ? OR c.id_medico IS NULL)
             ORDER BY a.criado_em DESC
         ");
         if ($stmtA) {
@@ -485,8 +485,14 @@ try {
             $stmtA->execute();
             $resA = $stmtA->get_result();
             $porConsulta = [];
+            $gerais = [];
             while ($resA && $a = $resA->fetch_assoc()) {
-                $porConsulta[intval($a['id_consulta'])][] = $a;
+                $cid = intval($a['id_consulta']);
+                if ($cid > 0) {
+                    $porConsulta[$cid][] = $a;
+                } else {
+                    $gerais[] = $a;
+                }
             }
             $stmtA->close();
 
@@ -496,7 +502,9 @@ try {
             unset($hh);
 
             if ($id_consulta > 0) {
-                $anexosAtual = $porConsulta[$id_consulta] ?? [];
+                $anexosAtual = array_merge($porConsulta[$id_consulta] ?? [], $gerais);
+            } else {
+                $anexosAtual = $gerais;
             }
         }
     } catch (Throwable $eAx) {}

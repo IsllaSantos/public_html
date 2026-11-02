@@ -205,96 +205,190 @@ function aplicarMascaraCPF() {
 
 
 /* ==============================
-   AGENDA — SLOTS DISPONÍVEIS & CHIPS
+   AGENDAMENTO — CASCATA INTUITIVA (ESTILO PACIENTE)
 ============================== */
 
-function agendaResetSlots() {
-    var sel = document.getElementById('slotHora');
-    if (sel) {
-        sel.innerHTML = '<option value="">Selecione médico e data primeiro</option>';
-        sel.disabled = true;
-    }
-
-    var chipsContainer = document.getElementById('slotsChipsContainer');
-    if (chipsContainer) {
-        chipsContainer.innerHTML = '';
-    }
-
-    var dataInput = document.getElementById('slotData');
-    if (dataInput) dataInput.value = '';
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-function agendaCarregarSlots() {
-    var idMedico = document.getElementById('slotMedico').value;
-    var data     = document.getElementById('slotData').value;
-    var selHora  = document.getElementById('slotHora');
+function secretariaCarregarMedicos() {
+    var espEl = document.getElementById('agEspecialidade');
+    var especialidade = espEl ? espEl.value : '';
+    var selectMedico = document.getElementById('agMedico');
+    var selectData   = document.getElementById('agData');
+    var selectHora   = document.getElementById('agHorario');
+    var btnAgendar   = document.getElementById('btnAgendarSecretaria');
     var chipsContainer = document.getElementById('slotsChipsContainer');
 
-    var hdnData = document.getElementById('hdnData');
-    if (hdnData) hdnData.value = data;
+    if (!selectMedico) return;
 
-    if (!idMedico || !data) {
-        if (selHora) {
-            selHora.innerHTML = '<option value="">Selecione médico e data primeiro</option>';
-            selHora.disabled = true;
+    selectMedico.innerHTML = '<option value="">Carregando médicos...</option>';
+    selectMedico.disabled = true;
+
+    if (selectData) {
+        selectData.innerHTML = '<option value="">Selecione o médico primeiro...</option>';
+        selectData.disabled = true;
+    }
+    if (selectHora) {
+        selectHora.innerHTML = '<option value="">Selecione a data primeiro...</option>';
+        selectHora.disabled = true;
+    }
+    if (btnAgendar) btnAgendar.disabled = true;
+    if (chipsContainer) chipsContainer.innerHTML = '';
+
+    fetch('api/secretaria_agenda_slots.php?acao=medicos&especialidade=' + encodeURIComponent(especialidade))
+    .then(function(r) { return r.json(); })
+    .then(function(medicos) {
+        if (!medicos || medicos.length === 0) {
+            selectMedico.innerHTML = '<option value="">Nenhum médico disponível nesta especialidade</option>';
+            return;
         }
-        if (chipsContainer) chipsContainer.innerHTML = '';
+
+        var html = '<option value="">Selecione o médico...</option>';
+        medicos.forEach(function(m) {
+            html += '<option value="' + m.id_usuario + '">' +
+                    escapeHtml(m.nome) + (m.especialidade ? ' — ' + escapeHtml(m.especialidade) : '') + '</option>';
+        });
+
+        selectMedico.innerHTML = html;
+        selectMedico.disabled = false;
+    })
+    .catch(function() {
+        selectMedico.innerHTML = '<option value="">Erro ao carregar médicos</option>';
+    });
+}
+
+function secretariaCarregarDatas() {
+    var medEl = document.getElementById('agMedico');
+    var id_medico = medEl ? medEl.value : '';
+    var selectData = document.getElementById('agData');
+    var selectHora = document.getElementById('agHorario');
+    var btnAgendar = document.getElementById('btnAgendarSecretaria');
+    var chipsContainer = document.getElementById('slotsChipsContainer');
+
+    if (selectData) {
+        selectData.innerHTML = '<option value="">Carregando datas...</option>';
+        selectData.disabled = true;
+    }
+    if (selectHora) {
+        selectHora.innerHTML = '<option value="">Selecione a data primeiro...</option>';
+        selectHora.disabled = true;
+    }
+    if (btnAgendar) btnAgendar.disabled = true;
+    if (chipsContainer) chipsContainer.innerHTML = '';
+
+    if (!id_medico) {
+        if (selectData) selectData.innerHTML = '<option value="">Selecione o médico primeiro...</option>';
         return;
     }
 
-    if (selHora) {
-        selHora.innerHTML = '<option value="">Carregando horários...</option>';
-        selHora.disabled = true;
-    }
-    if (chipsContainer) {
-        chipsContainer.innerHTML = '<p style="color:#888;font-size:0.85rem;">Carregando horários disponíveis...</p>';
-    }
-
-    fetch('api/secretaria_agenda_slots.php?id_medico=' + idMedico + '&data=' + data)
+    fetch('api/secretaria_agenda_slots.php?acao=datas&id_medico=' + id_medico)
     .then(function(r) { return r.json(); })
-    .then(function(slots) {
-        if (!slots || !slots.length) {
-            if (selHora) {
-                selHora.innerHTML = '<option value="">Sem horários disponíveis nesta data</option>';
-                selHora.disabled = true;
+    .then(function(datas) {
+        if (!datas || datas.length === 0) {
+            if (selectData) {
+                selectData.innerHTML = '<option value="">Nenhuma data disponível para este médico</option>';
+                selectData.disabled = true;
             }
             if (chipsContainer) {
-                chipsContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;padding:8px 0;">⚠ Nenhum horário livre encontrado para este médico na data selecionada.</p>';
+                chipsContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;padding:6px 0;">⚠ Este médico não possui horários cadastrados em "Minha Agenda".</p>';
             }
             return;
         }
 
-        // Popula select nativo (para envio padrão de formulário)
-        if (selHora) {
-            selHora.innerHTML = '<option value="">Selecione um horário</option>' +
-                slots.map(function(h) {
-                    return '<option value="' + h + '">' + h + '</option>';
-                }).join('');
-            selHora.disabled = false;
-        }
+        var diasPT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        var html = '<option value="">Selecione a data...</option>';
+        datas.forEach(function(d) {
+            var partes = d.split('-');
+            var dt = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+            var diaSemana = diasPT[dt.getDay()];
+            var label = partes[2] + '/' + partes[1] + '/' + partes[0] + ' (' + diaSemana + ')';
+            html += '<option value="' + d + '">' + label + '</option>';
+        });
 
-        // Renderiza Chips Visuais Interativos
-        if (chipsContainer) {
-            var html = '<div class="slots-wrapper">';
-            html += '<div class="slots-period-title">⏱️ Horários Disponíveis:</div>';
-            html += '<div class="slots-grid">';
-
-            slots.forEach(function(hora) {
-                html += '<div class="slot-chip" data-hora="' + hora + '" onclick="selecionarSlotChip(this, \'' + hora + '\')">' + hora + '</div>';
-            });
-
-            html += '</div></div>';
-            chipsContainer.innerHTML = html;
+        if (selectData) {
+            selectData.innerHTML = html;
+            selectData.disabled = false;
         }
     })
     .catch(function() {
-        if (selHora) {
-            selHora.innerHTML = '<option value="">Erro ao carregar horários</option>';
-            selHora.disabled = true;
+        if (selectData) selectData.innerHTML = '<option value="">Erro ao carregar datas</option>';
+    });
+}
+
+function secretariaCarregarHorarios() {
+    var medEl = document.getElementById('agMedico');
+    var dataEl = document.getElementById('agData');
+    var id_medico = medEl ? medEl.value : '';
+    var data      = dataEl ? dataEl.value : '';
+    var selectHora = document.getElementById('agHorario');
+    var btnAgendar = document.getElementById('btnAgendarSecretaria');
+    var chipsContainer = document.getElementById('slotsChipsContainer');
+
+    if (selectHora) {
+        selectHora.innerHTML = '<option value="">Carregando horários...</option>';
+        selectHora.disabled = true;
+    }
+    if (btnAgendar) btnAgendar.disabled = true;
+    if (chipsContainer) {
+        chipsContainer.innerHTML = '<p style="color:#888;font-size:0.85rem;">Carregando horários disponíveis...</p>';
+    }
+
+    if (!id_medico || !data) {
+        if (selectHora) selectHora.innerHTML = '<option value="">Selecione a data primeiro...</option>';
+        if (chipsContainer) chipsContainer.innerHTML = '';
+        return;
+    }
+
+    fetch('api/secretaria_agenda_slots.php?id_medico=' + id_medico + '&data=' + encodeURIComponent(data))
+    .then(function(r) { return r.json(); })
+    .then(function(slots) {
+        if (!slots || slots.length === 0) {
+            if (selectHora) {
+                selectHora.innerHTML = '<option value="">Nenhum horário disponível nesta data</option>';
+            }
+            if (chipsContainer) {
+                chipsContainer.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;padding:6px 0;">⚠ Nenhum horário livre para este médico na data selecionada.</p>';
+            }
+            return;
         }
+
+        var html = '<option value="">Selecione o horário...</option>';
+        slots.forEach(function(h) {
+            html += '<option value="' + h + '">' + h + '</option>';
+        });
+
+        if (selectHora) {
+            selectHora.innerHTML = html;
+            selectHora.disabled = false;
+
+            selectHora.onchange = function() {
+                var val = selectHora.value;
+                if (btnAgendar) btnAgendar.disabled = !val;
+                document.querySelectorAll('.slot-chip').forEach(function(c) {
+                    c.classList.toggle('selected', c.dataset.hora === val);
+                });
+            };
+        }
+
         if (chipsContainer) {
-            chipsContainer.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Erro ao carregar horários do servidor.</p>';
+            var chipsHtml = '<div class="slots-wrapper" style="margin-top:6px;">';
+            chipsHtml += '<div class="slots-period-title" style="font-weight:600;margin-bottom:8px;font-size:0.9rem;">⏱️ Horários Disponíveis:</div>';
+            chipsHtml += '<div class="slots-grid" style="display:flex;flex-wrap:wrap;gap:8px;">';
+            slots.forEach(function(hora) {
+                chipsHtml += '<div class="slot-chip" data-hora="' + hora + '" onclick="selecionarSlotChip(this, \'' + hora + '\')">' + hora + '</div>';
+            });
+            chipsHtml += '</div></div>';
+            chipsContainer.innerHTML = chipsHtml;
         }
+    })
+    .catch(function() {
+        if (selectHora) selectHora.innerHTML = '<option value="">Erro ao carregar horários</option>';
+        if (chipsContainer) chipsContainer.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Erro ao carregar horários.</p>';
     });
 }
 
@@ -304,11 +398,14 @@ function selecionarSlotChip(chipEl, hora) {
     });
     chipEl.classList.add('selected');
 
-    var sel = document.getElementById('slotHora');
+    var sel = document.getElementById('agHorario');
     if (sel) {
         sel.value = hora;
+        var btnAgendar = document.getElementById('btnAgendarSecretaria');
+        if (btnAgendar) btnAgendar.disabled = !hora;
     }
 }
+
 
 
 /* ==============================
@@ -357,6 +454,40 @@ function aplicarBuscaCEP() {
     });
 }
 
+/* ==============================
+   PREVENÇÃO DE AUTOFILL (NOVOS CADASTROS)
+============================== */
+
+function prevenirAutofillCadastrosSecretaria() {
+    ['api/secretaria_cadastro_medico.php', 'api/secretaria_cadastro_paciente.php'].forEach(function(action) {
+        var form = document.querySelector('form[action="' + action + '"]');
+        if (!form) return;
+
+        var email = form.querySelector('input[name="email"]');
+        var senha = form.querySelector('input[name="senha"]');
+
+        function limpar() {
+            if (email && !email.dataset.userInteracted) email.value = '';
+            if (senha && !senha.dataset.userInteracted) senha.value = '';
+        }
+
+        [email, senha].forEach(function(input) {
+            if (!input || input.dataset.autofillBound) return;
+            input.dataset.autofillBound = 'true';
+            ['input', 'focus', 'keydown'].forEach(function(evt) {
+                input.addEventListener(evt, function() {
+                    input.dataset.userInteracted = 'true';
+                });
+            });
+        });
+
+        limpar();
+        setTimeout(limpar, 60);
+        setTimeout(limpar, 200);
+        setTimeout(limpar, 500);
+    });
+}
+
 
 /* ==============================
    INICIALIZAÇÃO
@@ -366,4 +497,5 @@ window.onload = function() {
     aplicarMascaraTelefone();
     aplicarMascaraCPF();
     aplicarBuscaCEP();
+    prevenirAutofillCadastrosSecretaria();
 };
