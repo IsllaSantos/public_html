@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarPerfil('admin');
 
@@ -106,7 +107,19 @@ try {
     $stmt->execute();
     $stmt->close();
 
+    /* INATIVOU: opcionalmente cancela assinatura ativa */
+    if ($status === 'inativa' && !empty($_POST['cancelar_assinaturas'])) {
+        $stmtCa = $conn->prepare("UPDATE assinaturas SET status = 'cancelada' WHERE id_clinica = ? AND status = 'ativa'");
+        $stmtCa->bind_param('i', $id_clinica);
+        $stmtCa->execute();
+        if ($stmtCa->affected_rows > 0) {
+            registrarLog($conn, 'Assinatura cancelada ao inativar clínica #' . $id_clinica);
+        }
+        $stmtCa->close();
+    }
+
     $_SESSION['mensagem_sucesso'] = "Clínica \"" . $nome . "\" atualizada com sucesso!";
+    registrarLog($conn, "Edição de clínica: " . $nome . "");
     header("Location: ../admin.php?aba=clinicas");
     exit;
 

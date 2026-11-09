@@ -7,6 +7,7 @@ verificarPerfil('medico');
 
 $nomeMedico = $_SESSION['nome'];
 $id_medico  = $_SESSION['id_usuario'];
+$hojeMed    = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d');
 
 
 /* ==============================
@@ -63,6 +64,32 @@ $listaConsultas = $stmtConsultas->get_result();
 
 
 /* ==============================
+   ÚLTIMAS CONSULTAS FINALIZADAS (7 DIAS)
+============================== */
+
+$stmtFinalizadas = $conn->prepare("
+    SELECT
+        c.id_consulta,
+        c.data_consulta,
+        c.hora_consulta,
+        c.motivo_consulta,
+        p.nome AS nome_paciente,
+        p.id_usuario AS id_paciente
+    FROM consulta c
+    INNER JOIN usuarios p ON c.id_paciente = p.id_usuario
+    WHERE c.id_medico = ?
+    AND c.status = 'finalizada'
+    AND c.data_consulta >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+    AND c.data_consulta <= CURDATE()
+    ORDER BY c.data_consulta DESC, c.hora_consulta DESC
+    LIMIT 30
+");
+$stmtFinalizadas->bind_param("i", $id_medico);
+$stmtFinalizadas->execute();
+$listaFinalizadasSemana = $stmtFinalizadas->get_result();
+
+
+/* ==============================
    PACIENTES DO MÉDICO
 ============================== */
 
@@ -100,6 +127,38 @@ $stmtHoje->bind_param("i", $id_medico);
 $stmtHoje->execute();
 $metricas = $stmtHoje->get_result()->fetch_assoc();
 
+/* MÉTRICAS DA SEMANA (segunda a domingo) */
+$stmtSemana = $conn->prepare("
+    SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'finalizada' THEN 1 ELSE 0 END) AS finalizadas,
+        SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) AS canceladas
+    FROM consulta
+    WHERE id_medico = ?
+    AND YEARWEEK(data_consulta, 1) = YEARWEEK(CURDATE(), 1)
+");
+$stmtSemana->bind_param("i", $id_medico);
+$stmtSemana->execute();
+$metricasSemana = $stmtSemana->get_result()->fetch_assoc();
+
+/* TEMPO MÉDIO DE ATENDIMENTO (chegada -> fim) */
+$tempoMedioMin = null;
+$stmtTempo = @$conn->prepare("
+    SELECT AVG(TIMESTAMPDIFF(MINUTE, chegada_em, fim_atendimento)) AS media
+    FROM consulta
+    WHERE id_medico = ? AND status = 'finalizada'
+    AND chegada_em IS NOT NULL AND fim_atendimento IS NOT NULL
+    AND fim_atendimento >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+");
+if ($stmtTempo) {
+    $stmtTempo->bind_param("i", $id_medico);
+    $stmtTempo->execute();
+    $mediaRow = $stmtTempo->get_result()->fetch_assoc();
+    if ($mediaRow && $mediaRow['media'] !== null) {
+        $tempoMedioMin = (int)round($mediaRow['media']);
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -110,7 +169,7 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Painel Médico - TechNyes</title>
+<title>Painel Médico - NyesClinic</title>
 
 <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 
@@ -122,7 +181,7 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
 
   <div class="logo">
     <a href="medico.php">
-        Tech<span>Nyes</span>
+        Nyes<span>Clinic</span>
     </a>
   </div>
 
@@ -205,6 +264,22 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
         </div>
     </div>
 
+    <div class="card">
+        <h3>Consultas na Semana</h3>
+        <div style="font-size:2rem;font-weight:bold;color:var(--gold);">
+            <?= (int)($metricasSemana['total'] ?? 0) ?>
+        </div>
+        <small style="color:#888;"><?= (int)($metricasSemana['finalizadas'] ?? 0) ?> finalizadas · <?= (int)($metricasSemana['canceladas'] ?? 0) ?> canceladas</small>
+    </div>
+
+    <div class="card">
+        <h3>Tempo Médio de Atendimento</h3>
+        <div style="font-size:2rem;font-weight:bold;color:#8e44ad;">
+            <?= $tempoMedioMin !== null ? $tempoMedioMin . ' min' : '—' ?>
+        </div>
+        <small style="color:#888;">últimos 30 dias</small>
+    </div>
+
 </div>
 
 
@@ -269,10 +344,12 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
                     <td><?= htmlspecialchars($a['convenio'] ?? '—') ?></td>
                     <td><?= htmlspecialchars($a['motivo_consulta'] ?? '—') ?></td>
                     <td>
+                        <?php if ($a['data_consulta'] === $hojeMed): ?>
                         <button class="menu-btn" style="background:#27ae60;"
                             onclick="iniciarAtendimento(<?= $a['id_consulta'] ?>, <?= $a['id_paciente'] ?>)">
                             ▶ Iniciar Atendimento
                         </button>
+                        <?php endif; ?>
                         <button class="menu-btn" style="background:#2980b9; margin-left:5px;"
                             onclick="verDetalhes(<?= $a['id_consulta'] ?>, <?= $a['id_paciente'] ?>)">
                             Ver Detalhes
@@ -352,7 +429,7 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
                         </td>
 
                         <td>
-                            <?php if ($c['status'] === 'aguardando_atendimento' || $c['status'] === 'aguardando_atendimen' || $c['status'] === 'aguardando' || $c['status'] === 'em_atendimento'): ?>
+                            <?php if (($c['status'] === 'aguardando_atendimento' || $c['status'] === 'aguardando_atendimen' || $c['status'] === 'aguardando' || $c['status'] === 'em_atendimento') && $c['data_consulta'] === $hojeMed): ?>
                                 <button class="menu-btn" style="background:#27ae60;"
                                     onclick="iniciarAtendimento(<?= $c['id_consulta'] ?>, <?= $c['id_paciente'] ?>)">
                                     ▶ Iniciar Atendimento
@@ -367,6 +444,61 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
                                     Ver Detalhes
                                 </button>
                             <?php endif; ?>
+                        </td>
+                    </tr>
+
+                <?php endwhile; ?>
+                <?php endif; ?>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <div class="card">
+
+            <h3>
+                Últimas Consultas Finalizadas (7 dias)
+            </h3>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Horário</th>
+                        <th>Paciente</th>
+                        <th>Motivo</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                <?php if ($listaFinalizadasSemana->num_rows === 0): ?>
+
+                    <tr>
+                        <td colspan="6" style="text-align:center;color:#888;">
+                            Nenhuma consulta finalizada nos últimos 7 dias.
+                        </td>
+                    </tr>
+
+                <?php else: ?>
+                <?php while ($f = $listaFinalizadasSemana->fetch_assoc()): ?>
+
+                    <tr>
+                        <td><?= date('d/m/Y', strtotime($f['data_consulta'])) ?></td>
+                        <td><?= substr($f['hora_consulta'], 0, 5) ?></td>
+                        <td><?= htmlspecialchars($f['nome_paciente']) ?></td>
+                        <td><?= htmlspecialchars($f['motivo_consulta'] ?? '—') ?></td>
+                        <td><span class="status confirmed">Finalizada</span></td>
+                        <td>
+                            <button class="menu-btn" style="background:#2980b9;"
+                                onclick="verDetalhes(<?= (int)$f['id_consulta'] ?>, <?= (int)$f['id_paciente'] ?>)">
+                                Visualizar
+                            </button>
                         </td>
                     </tr>
 
@@ -768,6 +900,10 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
 
                     <div class="textarea-group">
                         <label>Medicamentos Prescritos</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                            <select id="prontReceitaMedModelos" class="field" style="max-width:240px;" onchange="aplicarModelo('modelosReceita','prontReceitaMed',this.value)"><option value="">Usar modelo...</option></select>
+                            <button type="button" class="menu-btn" onclick="salvarModelo('modelosReceita','prontReceitaMed','receita')">Salvar como modelo</button>
+                        </div>
                         <textarea id="prontReceitaMed" name="medicamentos_receita" class="large"
                             placeholder="1) Medicamento — dose — posologia — duração&#10;2) Medicamento — dose — posologia — duração&#10;3) ..."></textarea>
                     </div>
@@ -778,6 +914,10 @@ $metricas = $stmtHoje->get_result()->fetch_assoc();
 
                     <div class="textarea-group">
                         <label>Exames Solicitados</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                            <select id="prontExamesSolModelos" class="field" style="max-width:240px;" onchange="aplicarModelo('modelosExames','prontExamesSol',this.value)"><option value="">Usar modelo...</option></select>
+                            <button type="button" class="menu-btn" onclick="salvarModelo('modelosExames','prontExamesSol','exames')">Salvar como modelo</button>
+                        </div>
                         <textarea id="prontExamesSol" name="exames_solicitados" class="large"
                             placeholder="1) Hemograma completo&#10;2) Glicemia em jejum&#10;3) Colesterol total e frações&#10;4) ..."></textarea>
                     </div>

@@ -11,7 +11,7 @@ $id_clinica = $_SESSION['id_clinica'];
 /* ABA ATIVA */
 
 $abaInicial = $_GET['aba'] ?? 'dashboard';
-if (!in_array($abaInicial, ['dashboard', 'medicos', 'pacientes', 'agendamentos'], true)) {
+if (!in_array($abaInicial, ['dashboard', 'medicos', 'pacientes', 'agendamentos', 'calendario'], true)) {
     $abaInicial = 'dashboard';
 }
 
@@ -52,7 +52,7 @@ $pacientesAtivos = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0);
 /* Uma única consulta para hoje / pendentes / aguardando (menos idas ao banco remoto) */
 $stmt = $conn->prepare("
     SELECT
-        COALESCE(SUM(c.data_consulta = CURDATE() OR DATE(c.chegada_em) = CURDATE()), 0) AS hoje,
+        COALESCE(SUM(c.data_consulta = CURDATE() AND c.status <> 'cancelada'), 0) AS hoje,
         COALESCE(SUM(c.status = 'agendada'), 0) AS pendentes,
         COALESCE(SUM(c.status IN ('aguardando_atendimento', 'aguardando_atendimen', 'aguardando')), 0) AS aguardando
     FROM consulta c
@@ -75,6 +75,8 @@ $aguardandoAtendimento = (int)($row['aguardando'] ?? 0);
 $consultasPendentes = $conn->prepare("
     SELECT
         c.id_consulta,
+        c.id_paciente,
+        c.id_medico,
         c.data_consulta,
         c.hora_consulta,
         c.status,
@@ -103,6 +105,113 @@ $listaConsultas = $consultasPendentes->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
 
+
+
+/* ==============================
+   ANIVERSARIANTES DO MÊS (dashboard)
+============================== */
+
+$aniversariantes = [];
+if ($abaInicial === 'dashboard') {
+    $stmtAn = @$conn->prepare("
+        SELECT id_usuario, nome, telefone, data_nascimento
+        FROM usuarios
+        WHERE id_clinica = ? AND perfil = 'paciente' AND status = 'ativo'
+        AND data_nascimento IS NOT NULL
+        AND MONTH(data_nascimento) = MONTH(CURDATE())
+        ORDER BY DAY(data_nascimento), nome
+    ");
+    if ($stmtAn) {
+        $stmtAn->bind_param("i", $id_clinica);
+        $stmtAn->execute();
+        $aniversariantes = $stmtAn->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmtAn->close();
+    }
+}
+
+
+/* ==============================
+   CALENDÁRIO SEMANAL (por médico)
+============================== */
+
+$calMedicos = [];
+$calConsultas = [];
+$calDisponiveis = [];
+$calMedicoSel = intval($_GET['medico'] ?? 0);
+$calSemana = intval($_GET['semana'] ?? 0);
+$calInicio = new DateTime('monday this week');
+$calInicio->modify(($calSemana >= 0 ? '+' : '') . $calSemana . ' week');
+$calFim = (clone $calInicio)->modify('+6 day');
+
+if ($abaInicial === 'calendario') {
+    $stmtCm = $conn->prepare("SELECT id_usuario, nome, especialidade, duracao_consulta FROM usuarios WHERE id_clinica = ? AND perfil = 'medico' AND status = 'ativo' ORDER BY nome");
+    $stmtCm->bind_param("i", $id_clinica);
+    $stmtCm->execute();
+    $calMedicos = $stmtCm->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmtCm->close();
+
+    if ($calMedicoSel <= 0 && !empty($calMedicos)) {
+        $calMedicoSel = intval($calMedicos[0]['id_usuario']);
+    }
+
+    if ($calMedicoSel > 0) {
+        $ini = $calInicio->format('Y-m-d');
+        $fim = $calFim->format('Y-m-d');
+        $stmtCc = $conn->prepare("
+            SELECT c.id_consulta, c.data_consulta, c.hora_consulta, c.status, p.nome AS paciente
+            FROM consulta c
+            INNER JOIN usuarios p ON p.id_usuario = c.id_paciente
+            INNER JOIN usuarios m ON m.id_usuario = c.id_medico
+            WHERE c.id_medico = ? AND m.id_clinica = ?
+            AND c.data_consulta BETWEEN ? AND ?
+            AND c.status <> 'cancelada'
+            ORDER BY c.data_consulta, c.hora_consulta
+        ");
+        $stmtCc->bind_param("iiss", $calMedicoSel, $id_clinica, $ini, $fim);
+        $stmtCc->execute();
+        foreach ($stmtCc->get_result()->fetch_all(MYSQLI_ASSOC) as $cc) {
+            $calConsultas[$cc['data_consulta']][] = $cc;
+        }
+        $stmtCc->close();
+
+        /* Disponibilidade cadastrada pelo médico na semana (horários livres = blocos - consultas) */
+        $duracaoCal = 30;
+        foreach ($calMedicos as $cmx) {
+            if ((int)$cmx['id_usuario'] === $calMedicoSel) {
+                $duracaoCal = intval($cmx['duracao_consulta'] ?? 30) ?: 30;
+            }
+        }
+        $stmtAg = $conn->prepare("
+            SELECT data_disp, hora_inicio, hora_fim
+            FROM agenda_medico
+            WHERE id_medico = ? AND ativo = 1 AND data_disp BETWEEN ? AND ?
+            ORDER BY data_disp, hora_inicio
+        ");
+        $stmtAg->bind_param("iss", $calMedicoSel, $ini, $fim);
+        $stmtAg->execute();
+        foreach ($stmtAg->get_result()->fetch_all(MYSQLI_ASSOC) as $bl) {
+            $d = $bl['data_disp'];
+            $ocup = [];
+            foreach ($calConsultas[$d] ?? [] as $cc) {
+                $ocup[] = substr($cc['hora_consulta'], 0, 5);
+            }
+            $atual = strtotime($d . ' ' . $bl['hora_inicio']);
+            $fimB  = strtotime($d . ' ' . $bl['hora_fim']);
+            $livres = 0;
+            while ($atual + ($duracaoCal * 60) <= $fimB) {
+                if (!in_array(date('H:i', $atual), $ocup, true)) $livres++;
+                $atual += $duracaoCal * 60;
+            }
+            $calDisponiveis[$d][] = [
+                'inicio' => substr($bl['hora_inicio'], 0, 5),
+                'fim'    => substr($bl['hora_fim'], 0, 5),
+                'livres' => $livres,
+            ];
+        }
+        $stmtAg->close();
+    }
+}
+
 /* ==============================
    MÉDICOS DA CLÍNICA
 ============================== */
@@ -111,8 +220,11 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
 $medicos = $conn->prepare("
     SELECT
-        id_usuario, nome, crm, uf_crm,
-        especialidade, telefone, status, duracao_consulta
+        id_usuario, nome, email, perfil, status, id_clinica,
+        cpf, rg, data_nascimento, sexo, telefone, celular,
+        crm, uf_crm, especialidade,
+        horario_inicio, horario_fim, duracao_consulta,
+        data_cadastro
     FROM usuarios
     WHERE id_clinica = ?
     AND perfil = 'medico'
@@ -138,8 +250,12 @@ if ($abaInicial === 'pacientes' || $abaInicial === 'agendamentos') {
 
 $pacientes = $conn->prepare("
     SELECT
-        id_usuario, nome, cpf, telefone,
-        celular, convenio, status
+        id_usuario, nome, email, perfil, status, id_clinica,
+        cpf, rg, data_nascimento, sexo, telefone, celular,
+        cep, endereco, numero, complemento, bairro, cidade, estado,
+        convenio, numero_carteirinha,
+        contato_emergencia_nome, contato_emergencia_telefone,
+        data_cadastro
     FROM usuarios
     WHERE id_clinica = ?
     AND perfil = 'paciente'
@@ -166,6 +282,8 @@ if ($abaInicial === 'agendamentos') {
 $agendamentos = $conn->prepare("
     SELECT
         c.id_consulta,
+        c.id_paciente,
+        c.id_medico,
         c.data_consulta,
         c.hora_consulta,
         c.tipo_consulta,
@@ -226,7 +344,7 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Painel Secretaria - TechNyes</title>
+<title>Painel Secretaria - NyesClinic</title>
 
 <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 
@@ -238,7 +356,7 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
     <div class="logo">
         <a href="secretaria.php">
-            Tech<span>Nyes</span>
+            Nyes<span>Clinic</span>
         </a>
     </div>
 
@@ -258,6 +376,10 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
         <button onclick="showSecretariaTab('agendamentos')" class="<?= $abaInicial === 'agendamentos' ? 'active' : '' ?>">
             Agendamentos
+        </button>
+
+        <button onclick="showSecretariaTab('calendario')" class="<?= $abaInicial === 'calendario' ? 'active' : '' ?>">
+            Calendário
         </button>
 
         <button onclick="window.location.href='logout.php'">
@@ -321,19 +443,6 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 >
 
     <div class="container">
-
-
-        <!-- MENSAGEM -->
-
-        <?php if ($abaInicial === 'dashboard' && !empty($mensagemSucesso)): ?>
-
-            <div class="card">
-                <p style="color:green;font-weight:bold;">
-                    <?= htmlspecialchars($mensagemSucesso) ?>
-                </p>
-            </div>
-
-        <?php endif; ?>
 
 
         <!-- CARDS -->
@@ -402,8 +511,16 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
                     <tr>
                         <td><?= date('d/m/Y', strtotime($c['data_consulta'])) ?></td>
                         <td><?= substr($c['hora_consulta'], 0, 5) ?></td>
-                        <td><strong><?= htmlspecialchars($c['nome_paciente']) ?></strong></td>
-                        <td><?= htmlspecialchars($c['nome_medico']) ?></td>
+                        <td>
+                            <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$c['id_paciente'] ?>, 'secretaria')" title="Clique para visualizar os dados do paciente">
+                                <?= htmlspecialchars($c['nome_paciente']) ?>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$c['id_medico'] ?>, 'secretaria')" title="Clique para visualizar os dados do médico">
+                                <?= htmlspecialchars($c['nome_medico']) ?>
+                            </a>
+                        </td>
                         <td><?= htmlspecialchars($c['especialidade_medico'] ?? '') ?></td>
                         <td><?= htmlspecialchars($c['motivo_consulta'] ?? '—') ?></td>
 
@@ -445,8 +562,108 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
         </div>
 
+        <!-- ANIVERSARIANTES DO MÊS -->
+        <div class="card" style="margin-top:20px;">
+            <h3>🎂 Aniversariantes do Mês</h3>
+            <?php if (empty($aniversariantes)): ?>
+                <p style="color:#888;margin-top:10px;">Nenhum paciente faz aniversário neste mês.</p>
+            <?php else: ?>
+                <table>
+                    <thead><tr><th>Dia</th><th>Paciente</th><th>Telefone</th></tr></thead>
+                    <tbody>
+                    <?php foreach ($aniversariantes as $an): ?>
+                        <tr>
+                            <td><?= date('d/m', strtotime($an['data_nascimento'])) ?></td>
+                            <td>
+                                <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$an['id_usuario'] ?>, 'secretaria')" title="Clique para visualizar os dados">
+                                    <?= htmlspecialchars($an['nome']) ?>
+                                </a>
+                            </td>
+                            <td><?= htmlspecialchars($an['telefone'] ?? '') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+
     </div>
 
+</section>
+
+
+
+<!-- ==============================
+     CALENDÁRIO SEMANAL
+============================== -->
+
+<section
+    id="calendario"
+    class="secretaria-tab <?= $abaInicial === 'calendario' ? 'active' : '' ?>"
+    style="<?= $abaInicial === 'calendario' ? '' : 'display:none;' ?>"
+>
+    <div class="container">
+        <div class="card">
+
+            <div class="top-bar" style="flex-wrap:wrap;gap:10px;">
+                <h3>Calendário Semanal</h3>
+
+                <form method="GET" action="secretaria.php" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <input type="hidden" name="aba" value="calendario">
+                    <input type="hidden" name="semana" value="<?= $calSemana ?>">
+                    <select name="medico" class="field" onchange="this.form.submit()" style="min-width:220px;">
+                        <?php foreach ($calMedicos as $cm): ?>
+                            <option value="<?= (int)$cm['id_usuario'] ?>" <?= $calMedicoSel === (int)$cm['id_usuario'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($cm['nome'] . (!empty($cm['especialidade']) ? ' — ' . $cm['especialidade'] : '')) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <a class="menu-btn" style="text-decoration:none;" href="secretaria.php?aba=calendario&medico=<?= $calMedicoSel ?>&semana=<?= $calSemana - 1 ?>">← Anterior</a>
+                    <a class="menu-btn" style="text-decoration:none;" href="secretaria.php?aba=calendario&medico=<?= $calMedicoSel ?>&semana=0">Hoje</a>
+                    <a class="menu-btn" style="text-decoration:none;" href="secretaria.php?aba=calendario&medico=<?= $calMedicoSel ?>&semana=<?= $calSemana + 1 ?>">Próxima →</a>
+                </form>
+            </div>
+
+            <p style="color:#888;margin:8px 0 15px;">
+                <?= $calInicio->format('d/m/Y') ?> a <?= $calFim->format('d/m/Y') ?>
+            </p>
+
+            <?php if (empty($calMedicos)): ?>
+                <p style="color:#888;">Nenhum médico ativo nesta clínica.</p>
+            <?php else: ?>
+                <?php $diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']; ?>
+                <div style="display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));gap:10px;overflow-x:auto;">
+                    <?php for ($i = 0; $i < 7; $i++):
+                        $dia = (clone $calInicio)->modify("+$i day");
+                        $chave = $dia->format('Y-m-d');
+                        $ehHoje = ($chave === date('Y-m-d'));
+                    ?>
+                        <div style="border:1px solid <?= $ehHoje ? 'var(--gold)' : '#ddd' ?>;border-radius:10px;padding:8px;min-height:140px;">
+                            <strong><?= $diasSemana[$i] ?> <?= $dia->format('d/m') ?></strong>
+                            <?php foreach ($calDisponiveis[$chave] ?? [] as $bl):
+                                $temLivres = ((int)$bl['livres'] > 0);
+                            ?>
+                                <div style="margin-top:6px;padding:5px 7px;border-radius:6px;font-size:.78rem;background:<?= $temLivres ? 'rgba(39,174,96,.12)' : 'rgba(239,68,68,.12)' ?>;border:1px dashed <?= $temLivres ? '#27ae60' : '#ef4444' ?>;">
+                                    <?= $temLivres ? '🟢 Disponível' : '🔴 Ocupado' ?><br>
+                                    <strong><?= $bl['inicio'] ?>–<?= $bl['fim'] ?></strong>
+                                    <div style="color:<?= $temLivres ? '#555' : '#b91c1c' ?>;"><?= (int)$bl['livres'] ?> horário(s) livre(s)</div>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (empty($calConsultas[$chave]) && empty($calDisponiveis[$chave])): ?>
+                                <div style="color:#aaa;font-size:.8rem;margin-top:8px;">Sem agenda</div>
+                            <?php else: foreach ($calConsultas[$chave] ?? [] as $cc): ?>
+                                <div style="margin-top:6px;padding:5px 7px;border-radius:6px;font-size:.8rem;background:<?= $cc['status'] === 'finalizada' ? 'rgba(39,174,96,.15)' : 'rgba(41,128,185,.15)' ?>;">
+                                    <strong><?= substr($cc['hora_consulta'], 0, 5) ?></strong>
+                                    <?= htmlspecialchars($cc['paciente']) ?>
+                                </div>
+                            <?php endforeach; endif; ?>
+                        </div>
+                    <?php endfor; ?>
+                </div>
+            <?php endif; ?>
+
+        </div>
+    </div>
 </section>
 
 
@@ -464,21 +681,15 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
     <div class="container">
 
 
-        <?php if ($abaInicial === 'medicos' && !empty($mensagemSucesso)): ?>
-            <div class="card">
-                <p style="color:green;font-weight:bold;">
-                    <?= htmlspecialchars($mensagemSucesso) ?>
-                </p>
-            </div>
-        <?php endif; ?>
+        <!-- CADASTRAR MÉDICO (Oculto por padrão; abre ao clicar em "Novo Cadastro") -->
 
-
-        <!-- CADASTRAR MÉDICO -->
-
-        <div class="card">
+        <div class="card" id="cardNovoMedico" style="display:none;">
 
             <div class="top-bar">
                 <h3>Novo Médico</h3>
+                <button type="button" class="btn btn-secondary" onclick="alternarCadastroSecretaria('medicos', false)">
+                    ← Minimizar / Ver Lista
+                </button>
             </div>
 
             <form
@@ -597,9 +808,14 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
                 <br>
 
-                <button type="submit" class="confirm-btn">
-                    Cadastrar Médico
-                </button>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button type="submit" class="confirm-btn">
+                        Cadastrar Médico
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="alternarCadastroSecretaria('medicos', false)">
+                        Cancelar
+                    </button>
+                </div>
 
             </form>
 
@@ -608,48 +824,73 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
         <!-- LISTA -->
 
-        <div class="card">
+        <div class="card" id="cardListaMedicos">
 
             <div class="top-bar">
-                <h3>Médicos da Clínica</h3>
+                <h3>Médicos da Clínica <span style="font-size:0.88rem;font-weight:500;color:var(--text-muted);">(<?= count($listaMedicos) ?>)</span></h3>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button type="button" class="confirm-btn" id="btnNovoCadastroMedicos" onclick="alternarCadastroSecretaria('medicos', true)">
+                        + Novo Cadastro
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnExpandirListaMedicos" style="display:none;" onclick="alternarCadastroSecretaria('medicos', false)">
+                        📋 Maximizar Lista
+                    </button>
+                </div>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>CRM</th>
-                        <th>Especialidade</th>
-                        <th>Telefone</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
+            <div id="conteudoListaMedicos">
+                <div style="margin-bottom:15px;max-width:420px;">
+                    <input type="text" id="buscaMedico" class="field" autocomplete="off"
+                        placeholder="🔍 Pesquisar médico por nome, CRM ou especialidade..."
+                        onkeyup="filtrarTabelaSecretaria('buscaMedico', 'tbodyMedicos')">
+                </div>
 
-                <tbody>
+                <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CRM</th>
+                            <th>Especialidade</th>
+                            <th>Telefone</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
 
-                <?php foreach ($listaMedicos as $m): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($m['nome']) ?></td>
-                        <td><?= htmlspecialchars($m['crm'] ?? '') ?>-<?= htmlspecialchars($m['uf_crm'] ?? '') ?></td>
-                        <td><?= htmlspecialchars($m['especialidade'] ?? '') ?></td>
-                        <td><?= htmlspecialchars($m['telefone'] ?? '') ?></td>
-                        <td>
-                            <?php if ($m['status'] === 'ativo'): ?>
-                                <span class="status confirmed">Ativo</span>
-                            <?php else: ?>
-                                <span class="status">Inativo</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <button class="menu-btn" type="button"
-                                onclick="window.location.href='editar_usuario.php?aba=medicos&id=<?= (int)$m['id_usuario'] ?>'">Editar</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
+                    <tbody id="tbodyMedicos">
 
-                </tbody>
-            </table>
+                    <?php foreach ($listaMedicos as $m): ?>
+                        <tr>
+                            <td>
+                                <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$m['id_usuario'] ?>, 'secretaria')" title="Clique para visualizar os dados do médico">
+                                    <?= htmlspecialchars($m['nome']) ?>
+                                </a>
+                            </td>
+                            <td><?= htmlspecialchars($m['crm'] ?? '') ?><?= !empty($m['uf_crm']) ? '-' . htmlspecialchars($m['uf_crm']) : '' ?></td>
+                            <td><?= htmlspecialchars($m['especialidade'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($m['telefone'] ?? $m['celular'] ?? '') ?></td>
+                            <td>
+                                <?php if ($m['status'] === 'ativo'): ?>
+                                    <span class="status confirmed">Ativo</span>
+                                <?php else: ?>
+                                    <span class="status">Inativo</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <button class="menu-btn" type="button"
+                                    onclick="window.location.href='editar_usuario.php?aba=medicos&id=<?= (int)$m['id_usuario'] ?>'">Editar</button>
+                                <button class="menu-btn" type="button"
+                                    style="background:#c0392b;margin-left:5px;"
+                                    onclick="confirmarExclusaoUsuarioSecretaria(<?= (int)$m['id_usuario'] ?>, <?= htmlspecialchars(json_encode($m['nome'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>, 'medicos')">Excluir</button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+
+                    </tbody>
+                </table>
+                </div>
+            </div>
 
         </div>
 
@@ -672,21 +913,15 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
     <div class="container">
 
 
-        <?php if ($abaInicial === 'pacientes' && !empty($mensagemSucesso)): ?>
-            <div class="card">
-                <p style="color:green;font-weight:bold;">
-                    <?= htmlspecialchars($mensagemSucesso) ?>
-                </p>
-            </div>
-        <?php endif; ?>
+        <!-- CADASTRAR PACIENTE (Oculto por padrão; abre ao clicar em "Novo Cadastro") -->
 
-
-        <!-- CADASTRAR PACIENTE -->
-
-        <div class="card">
+        <div class="card" id="cardNovoPaciente" style="display:none;">
 
             <div class="top-bar">
                 <h3>Novo Paciente</h3>
+                <button type="button" class="btn btn-secondary" onclick="alternarCadastroSecretaria('pacientes', false)">
+                    ← Minimizar / Ver Lista
+                </button>
             </div>
 
             <form
@@ -835,9 +1070,14 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
                 <br>
 
-                <button type="submit" class="confirm-btn">
-                    Cadastrar Paciente
-                </button>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button type="submit" class="confirm-btn">
+                        Cadastrar Paciente
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="alternarCadastroSecretaria('pacientes', false)">
+                        Cancelar
+                    </button>
+                </div>
 
             </form>
 
@@ -846,48 +1086,75 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
         <!-- LISTA -->
 
-        <div class="card">
+        <div class="card" id="cardListaPacientes">
 
             <div class="top-bar">
-                <h3>Pacientes da Clínica</h3>
+                <h3>Pacientes da Clínica <span style="font-size:0.88rem;font-weight:500;color:var(--text-muted);">(<?= count($listaPacientes) ?>)</span></h3>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button type="button" class="confirm-btn" id="btnNovoCadastroPacientes" onclick="alternarCadastroSecretaria('pacientes', true)">
+                        + Novo Cadastro
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnExpandirListaPacientes" style="display:none;" onclick="alternarCadastroSecretaria('pacientes', false)">
+                        📋 Maximizar Lista
+                    </button>
+                </div>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>CPF</th>
-                        <th>Telefone</th>
-                        <th>Convênio</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
+            <div id="conteudoListaPacientes">
+                <div class="busca-paciente-wrap" style="position:relative;margin-bottom:15px;max-width:420px;">
+                    <input type="text" id="buscaPaciente" class="field" autocomplete="off"
+                        placeholder="🔍 Pesquisar paciente por nome ou CPF..."
+                        oninput="buscarPacientePopup(this)" onfocus="buscarPacientePopup(this)"
+                        onkeydown="if(event.key==='Escape')fecharPopupPacientes()">
+                    <div id="popupPacientes" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;margin-top:4px;background:#fff;color:#222;border:1px solid #ddd;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);max-height:260px;overflow-y:auto;"></div>
+                </div>
 
-                <tbody>
+                <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Telefone</th>
+                            <th>Convênio</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
 
-                <?php foreach ($listaPacientes as $p): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($p['nome']) ?></td>
-                        <td><?= htmlspecialchars($p['cpf'] ?? '') ?></td>
-                        <td><?= htmlspecialchars($p['telefone'] ?? $p['celular'] ?? '') ?></td>
-                        <td><?= htmlspecialchars($p['convenio'] ?? '') ?></td>
-                        <td>
-                            <?php if ($p['status'] === 'ativo'): ?>
-                                <span class="status confirmed">Ativo</span>
-                            <?php else: ?>
-                                <span class="status">Inativo</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <button class="menu-btn" type="button"
-                                onclick="window.location.href='editar_usuario.php?aba=pacientes&id=<?= (int)$p['id_usuario'] ?>'">Editar</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
+                    <tbody>
 
-                </tbody>
-            </table>
+                    <?php foreach ($listaPacientes as $p): ?>
+                        <tr>
+                            <td>
+                                <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$p['id_usuario'] ?>, 'secretaria')" title="Clique para visualizar os dados do paciente">
+                                    <?= htmlspecialchars($p['nome']) ?>
+                                </a>
+                            </td>
+                            <td><?= htmlspecialchars($p['cpf'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($p['telefone'] ?? $p['celular'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($p['convenio'] ?? '') ?></td>
+                            <td>
+                                <?php if ($p['status'] === 'ativo'): ?>
+                                    <span class="status confirmed">Ativo</span>
+                                <?php else: ?>
+                                    <span class="status">Inativo</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <button class="menu-btn" type="button"
+                                    onclick="window.location.href='editar_usuario.php?aba=pacientes&id=<?= (int)$p['id_usuario'] ?>'">Editar</button>
+                                <button class="menu-btn" type="button"
+                                    style="background:#c0392b;margin-left:5px;"
+                                    onclick="confirmarExclusaoUsuarioSecretaria(<?= (int)$p['id_usuario'] ?>, <?= htmlspecialchars(json_encode($p['nome'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>, 'pacientes')">Excluir</button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+
+                    </tbody>
+                </table>
+                </div>
+            </div>
 
         </div>
 
@@ -908,15 +1175,6 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 >
 
     <div class="container">
-
-
-        <?php if ($abaInicial === 'agendamentos' && !empty($mensagemSucesso)): ?>
-            <div class="card">
-                <p style="color:green;font-weight:bold;">
-                    <?= htmlspecialchars($mensagemSucesso) ?>
-                </p>
-            </div>
-        <?php endif; ?>
 
 
         <!-- AGENDAR CONSULTA (ESTILO PACIENTE + ESCOLHA DE PACIENTE) -->
@@ -1063,8 +1321,16 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
                     <tr>
                         <td><?= date('d/m/Y', strtotime($a['data_consulta'])) ?></td>
                         <td><?= substr($a['hora_consulta'], 0, 5) ?></td>
-                        <td><strong><?= htmlspecialchars($a['nome_paciente']) ?></strong></td>
-                        <td><?= htmlspecialchars($a['nome_medico']) ?></td>
+                        <td>
+                            <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$a['id_paciente'] ?>, 'secretaria')" title="Clique para visualizar os dados do paciente">
+                                <?= htmlspecialchars($a['nome_paciente']) ?>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$a['id_medico'] ?>, 'secretaria')" title="Clique para visualizar os dados do médico">
+                                <?= htmlspecialchars($a['nome_medico']) ?>
+                            </a>
+                        </td>
                         <td><?= htmlspecialchars($a['especialidade_medico'] ?? '') ?></td>
                         <td><?= htmlspecialchars($a['motivo_consulta'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($a['tipo_consulta'] ?? 'presencial') ?></td>
@@ -1108,7 +1374,20 @@ if ($abaInicial === 'medicos' || $abaInicial === 'agendamentos') {
 
 </section>
 
-
+<?php
+$usuariosMapSecretaria = [];
+foreach ($listaMedicos as $mItem) {
+    $mItem['nome_clinica'] = $nomeClinica;
+    $usuariosMapSecretaria[(int)$mItem['id_usuario']] = $mItem;
+}
+foreach ($listaPacientes as $pItem) {
+    $pItem['nome_clinica'] = $nomeClinica;
+    $usuariosMapSecretaria[(int)$pItem['id_usuario']] = $pItem;
+}
+?>
+<script>
+window.usuariosDadosMap = <?= json_encode($usuariosMapSecretaria, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
 <script src="assets/js/main.js?v=<?= filemtime(__DIR__ . '/assets/js/main.js') ?>"></script>
 <script src="assets/js/secretaria.js?v=<?= filemtime(__DIR__ . '/assets/js/secretaria.js') ?>"></script>
 

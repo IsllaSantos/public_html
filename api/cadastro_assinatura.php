@@ -2,6 +2,8 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
+require_once('../config/assinaturas.php');
 
 verificarPerfil('admin');
 
@@ -29,6 +31,19 @@ if (
 }
 
 try {
+    /* UMA ASSINATURA ATIVA POR CLÍNICA */
+    $chk = $conn->prepare("SELECT 1 FROM assinaturas WHERE id_clinica = ? AND status = 'ativa' LIMIT 1");
+    $chk->bind_param("i", $id_clinica);
+    $chk->execute();
+    $existe = $chk->get_result()->num_rows > 0;
+    $chk->close();
+
+    if ($existe) {
+        $_SESSION['mensagem_sucesso'] = "Esta clínica já possui uma assinatura ativa. Edite ou cancele a existente.";
+        header("Location: ../admin.php?aba=financeiro");
+        exit;
+    }
+
     $sql = "
     INSERT INTO assinaturas
     (
@@ -54,6 +69,7 @@ try {
 
     if ($stmt->execute()) {
         $_SESSION['mensagem_sucesso'] = "Assinatura cadastrada com sucesso!";
+        registrarLog($conn, "Cadastro de assinatura (clínica #" . $id_clinica . ")");
     } else {
         $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar assinatura: " . $stmt->error;
     }

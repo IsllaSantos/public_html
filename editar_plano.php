@@ -52,7 +52,7 @@ $recursosTexto = str_replace('|', "\n", $plano['recursos'] ?? '');
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Editar Plano - TechNyes</title>
+<title>Editar Plano - NyesClinic</title>
 
 <link
     rel="stylesheet"
@@ -67,7 +67,7 @@ $recursosTexto = str_replace('|', "\n", $plano['recursos'] ?? '');
 <header>
 
     <div class="logo">
-        Tech<span>Nyes</span>
+        Nyes<span>Clinic</span>
     </div>
 
     <nav>

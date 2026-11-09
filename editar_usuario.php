@@ -129,7 +129,7 @@ if ($resEspec) {
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Editar Usuário - TechNyes</title>
+<title>Editar Usuário - NyesClinic</title>
 
 <link
     rel="stylesheet"
@@ -144,7 +144,7 @@ if ($resEspec) {
 <header>
 
     <div class="logo">
-        Tech<span>Nyes</span>
+        Nyes<span>Clinic</span>
     </div>
 
     <nav>

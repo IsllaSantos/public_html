@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarLogin();
 
@@ -386,6 +387,7 @@ if ($senha_nova) {
 try {
     if ($stmt->execute()) {
         $_SESSION['mensagem_sucesso'] = "Usuário atualizado com sucesso!";
+        registrarLog($conn, "Edição de usuário");
         header("Location: " . $urlRetorno);
         exit;
     } else {

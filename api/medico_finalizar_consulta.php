@@ -10,10 +10,11 @@ try {
     require_once('../config/auth.php');
     require_once('../config/database.php');
     require_once('../config/status_consulta.php');
+    require_once('../config/logs.php');
     garantirStatusConsulta($conn);
 
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/../config/sessao.php';
     }
 
     if (!isset($_SESSION['id_usuario']) || !isset($_SESSION['perfil']) || $_SESSION['perfil'] !== 'medico') {
@@ -97,6 +98,7 @@ try {
         exit;
     }
 
+    registrarLog($conn, 'Consulta finalizada #' . $id_consulta);
     ob_clean();
     echo json_encode(['sucesso' => true, 'mensagem' => 'Consulta finalizada com sucesso!'], JSON_UNESCAPED_UNICODE);
     exit;

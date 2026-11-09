@@ -1,12 +1,12 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TechNyes - Acesso ao Sistema</title>
+    <title>NyesClinic - Acesso ao Sistema</title>
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
 <body>
@@ -17,7 +17,7 @@ session_start();
 
         <div style="text-align:center;margin-bottom:28px;">
             <h1 class="logo login-logo" style="justify-content:center;">
-                Tech<span>Nyes</span>
+                Nyes<span>Clinic</span>
             </h1>
             <p style="margin-top:8px;color:var(--text-muted);font-size:0.92rem;">
                 Sistema Inteligente para Clínicas e Consultórios
@@ -35,6 +35,7 @@ session_start();
         <?php endif; ?>
 
         <form action="api/login.php" method="POST" autocomplete="on" onsubmit="return validarLogin()">
+            <?= csrfCampo() ?>
 
             <div class="input-group">
                 <label for="email">E-mail Profissional ou Paciente</label>
@@ -68,6 +69,10 @@ session_start();
                 Entrar no Sistema →
             </button>
 
+            <p style="text-align:center;margin-top:14px;font-size:0.88rem;">
+                <a href="esqueci_senha.php" style="color:var(--gold-dark);font-weight:600;">Esqueci minha senha</a>
+            </p>
+
         </form>
 
         <button
@@ -76,6 +81,10 @@ session_start();
             onclick="window.location.href='index.php'">
             ← Voltar à Página Inicial
         </button>
+
+        <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text-muted);">
+            Ao acessar, você concorda com a <a href="privacidade.php" style="color:var(--gold-dark);">Política de Privacidade</a>.
+        </p>
 
     </div>
 

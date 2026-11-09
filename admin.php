@@ -38,6 +38,8 @@ $isMensagemErro = (
 ============================== */
 
 require_once('config/database.php');
+require_once('config/assinaturas.php');
+$pkAssinatura = pkAssinatura($conn);
 
 
 /* ==============================
@@ -99,12 +101,46 @@ $usuarios = $conn->query("
         u.email,
         u.perfil,
         u.status,
+        u.id_clinica,
+        u.cpf,
+        u.rg,
+        u.data_nascimento,
+        u.sexo,
+        u.telefone,
+        u.celular,
+        u.crm,
+        u.uf_crm,
+        u.especialidade,
+        u.horario_inicio,
+        u.horario_fim,
+        u.duracao_consulta,
+        u.cep,
+        u.endereco,
+        u.numero,
+        u.complemento,
+        u.bairro,
+        u.cidade,
+        u.estado,
+        u.convenio,
+        u.numero_carteirinha,
+        u.contato_emergencia_nome,
+        u.contato_emergencia_telefone,
+        u.data_cadastro,
         c.nome AS nome_clinica
     FROM usuarios u
     LEFT JOIN clinica c
         ON u.id_clinica = c.id_clinica
     ORDER BY u.nome
 ");
+
+$listaUsuariosAdmin = [];
+$usuariosMapAdmin = [];
+if ($usuarios) {
+    while ($uRow = $usuarios->fetch_assoc()) {
+        $listaUsuariosAdmin[] = $uRow;
+        $usuariosMapAdmin[(int)$uRow['id_usuario']] = $uRow;
+    }
+}
 
 
 /* ==============================
@@ -148,6 +184,27 @@ while ($cl = $clinicasSelect->fetch_assoc()) {
 
 
 /* ==============================
+   CLÍNICAS SEM ASSINATURA ATIVA
+   (usado no form de nova assinatura)
+============================== */
+
+$clinicasAssinaturaSelect = $conn->query("
+    SELECT
+        id_clinica,
+        nome
+    FROM clinica
+    WHERE status = 'ativa'
+    AND id_clinica NOT IN (SELECT id_clinica FROM assinaturas WHERE status = 'ativa')
+    ORDER BY nome
+");
+
+$listaClinicasSemAssinatura = [];
+while ($cl = $clinicasAssinaturaSelect->fetch_assoc()) {
+    $listaClinicasSemAssinatura[] = $cl;
+}
+
+
+/* ==============================
    LISTA DE ESTADOS
 ============================== */
 
@@ -170,7 +227,8 @@ $planos = $conn->query("
         p.*,
         (SELECT COUNT(*) FROM assinaturas a
          WHERE a.id_plano = p.id_plano
-         AND a.status = 'ativa') AS total_assinaturas
+         AND a.status = 'ativa'
+         AND a.id_clinica IN (SELECT id_clinica FROM clinica WHERE status = 'ativa')) AS total_assinaturas
     FROM planos p
     ORDER BY p.valor ASC
 ");
@@ -205,6 +263,7 @@ $assinaturas = $conn->query("
     SELECT
         a.*,
         c.nome AS nome_clinica,
+        c.status AS status_clinica,
         p.nome AS nome_plano
     FROM assinaturas a
     INNER JOIN clinica c ON a.id_clinica = c.id_clinica
@@ -222,41 +281,33 @@ $totalAssinaturasAtivas = 0;
 $totalInadimplentes = 0;
 $totalProxVencimentos = 0;
 
-$res = $conn->query("
-    SELECT
-        COALESCE(SUM(valor), 0) AS total
-    FROM assinaturas
-    WHERE status = 'ativa'
-");
+/* Somente assinaturas ativas de clínicas ATIVAS entram nas métricas */
+$baseAssinaturaAtiva = "
+    FROM assinaturas a
+    INNER JOIN clinica c ON c.id_clinica = a.id_clinica
+    WHERE a.status = 'ativa'
+    AND c.status = 'ativa'
+";
+
+$res = $conn->query("SELECT COALESCE(SUM(a.valor), 0) AS total " . $baseAssinaturaAtiva);
 if ($row = $res->fetch_assoc()) {
     $faturamentoMensal = $row['total'];
 }
 
-$res = $conn->query("
-    SELECT COUNT(*) AS total
-    FROM assinaturas
-    WHERE status = 'ativa'
-");
+$res = $conn->query("SELECT COUNT(*) AS total " . $baseAssinaturaAtiva);
 if ($row = $res->fetch_assoc()) {
     $totalAssinaturasAtivas = $row['total'];
 }
 
-$res = $conn->query("
-    SELECT COUNT(*) AS total
-    FROM assinaturas
-    WHERE status = 'ativa'
-    AND data_vencimento < CURDATE()
-");
+$res = $conn->query("SELECT COUNT(*) AS total " . $baseAssinaturaAtiva . " AND a.data_vencimento < CURDATE()");
 if ($row = $res->fetch_assoc()) {
     $totalInadimplentes = $row['total'];
 }
 
 $res = $conn->query("
-    SELECT COUNT(*) AS total
-    FROM assinaturas
-    WHERE status = 'ativa'
-    AND data_vencimento >= CURDATE()
-    AND data_vencimento <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    SELECT COUNT(*) AS total " . $baseAssinaturaAtiva . "
+    AND a.data_vencimento >= CURDATE()
+    AND a.data_vencimento <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
 ");
 if ($row = $res->fetch_assoc()) {
     $totalProxVencimentos = $row['total'];
@@ -296,7 +347,7 @@ if ($especialidades) {
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Administrador - TechNyes</title>
+<title>Administrador - NyesClinic</title>
 
 <link
     rel="stylesheet"
@@ -316,7 +367,7 @@ if ($especialidades) {
 <header>
 
     <div class="logo">
-        Tech<span>Nyes</span>
+        Nyes<span>Clinic</span>
     </div>
 
 
@@ -451,6 +502,65 @@ if ($especialidades) {
 
             </div>
 
+
+        </div>
+
+        <?php
+            /* Clínicas cadastradas nos últimos 6 meses */
+            $mesesGraf = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $mesesGraf[date('Y-m', strtotime("-$i month", strtotime(date('Y-m-01'))))] = 0;
+            }
+            $rg = @$conn->query("SELECT DATE_FORMAT(data_cadastro, '%Y-%m') AS mes, COUNT(*) AS total FROM clinica GROUP BY mes");
+            if ($rg) { while ($g = $rg->fetch_assoc()) { if (isset($mesesGraf[$g['mes']])) $mesesGraf[$g['mes']] = (int)$g['total']; } }
+            $maxMes = max(1, max($mesesGraf));
+
+            /* Receita recorrente por plano (clínicas ativas) */
+            $receitaPlano = [];
+            $rp = @$conn->query("
+                SELECT p.nome, COALESCE(SUM(a.valor),0) AS total
+                FROM assinaturas a
+                INNER JOIN clinica c ON c.id_clinica = a.id_clinica
+                INNER JOIN planos p ON p.id_plano = a.id_plano
+                WHERE a.status = 'ativa' AND c.status = 'ativa'
+                GROUP BY p.id_plano, p.nome
+                ORDER BY total DESC
+            ");
+            if ($rp) { while ($r = $rp->fetch_assoc()) { $receitaPlano[] = $r; } }
+            $maxPlano = 1;
+            foreach ($receitaPlano as $r) { $maxPlano = max($maxPlano, (float)$r['total']); }
+        ?>
+        <div class="grid" style="margin-top:20px;">
+
+            <div class="card">
+                <h3>Novas clínicas (6 meses)</h3>
+                <div style="display:flex;align-items:flex-end;gap:12px;height:160px;margin-top:15px;">
+                    <?php foreach ($mesesGraf as $mes => $qtd): ?>
+                        <div style="flex:1;text-align:center;">
+                            <div style="font-size:.8rem;"><?= $qtd ?></div>
+                            <div style="background:var(--gold);border-radius:6px 6px 0 0;height:<?= max(4, round($qtd / $maxMes * 120)) ?>px;"></div>
+                            <div style="font-size:.75rem;color:#888;margin-top:4px;"><?= date('m/y', strtotime($mes . '-01')) ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Receita mensal por plano</h3>
+                <?php if (empty($receitaPlano)): ?>
+                    <p style="color:#888;margin-top:15px;">Sem assinaturas ativas.</p>
+                <?php else: foreach ($receitaPlano as $r): ?>
+                    <div style="margin-top:12px;">
+                        <div style="display:flex;justify-content:space-between;font-size:.85rem;">
+                            <span><?= htmlspecialchars($r['nome']) ?></span>
+                            <strong>R$ <?= number_format($r['total'], 2, ',', '.') ?></strong>
+                        </div>
+                        <div style="background:#eee;border-radius:6px;height:10px;">
+                            <div style="background:var(--gold);border-radius:6px;height:10px;width:<?= round($r['total'] / $maxPlano * 100) ?>%;"></div>
+                        </div>
+                    </div>
+                <?php endforeach; endif; ?>
+            </div>
 
         </div>
 
@@ -954,14 +1064,19 @@ if ($especialidades) {
         <?php endif; ?>
 
 
-        <!-- NOVO USUÁRIO -->
+        <!-- NOVO USUÁRIO (Oculto por padrão; abre ao clicar em "Novo Cadastro") -->
 
-        <div class="card">
+        <div class="card" id="cardNovoUsuario" style="display:none;">
 
 
-            <h3>
-                Novo Usuário
-            </h3>
+            <div class="top-bar">
+                <h3>
+                    Novo Usuário
+                </h3>
+                <button type="button" class="btn btn-secondary" onclick="alternarCadastroAdmin('usuarios', false)">
+                    ← Minimizar / Ver Lista
+                </button>
+            </div>
 
 
             <form
@@ -1660,14 +1775,21 @@ if ($especialidades) {
                 <br>
 
 
-                <button
-                    type="submit"
-                    class="confirm-btn"
-                >
-
-                    Cadastrar Usuário
-
-                </button>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button
+                        type="submit"
+                        class="confirm-btn"
+                    >
+                        Cadastrar Usuário
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        onclick="alternarCadastroAdmin('usuarios', false)"
+                    >
+                        Cancelar
+                    </button>
+                </div>
 
 
             </form>
@@ -1679,147 +1801,171 @@ if ($especialidades) {
 
         <!-- LISTA DE USUÁRIOS -->
 
-        <div class="card">
+        <div class="card" id="cardListaUsuarios">
 
 
-            <h3>
-                Usuários Cadastrados
-            </h3>
+            <div class="top-bar">
+                <h3>
+                    Usuários Cadastrados <span style="font-size:0.88rem;font-weight:500;color:var(--text-muted);">(<?= count($listaUsuariosAdmin) ?>)</span>
+                </h3>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button type="button" class="confirm-btn" id="btnNovoCadastroUsuarios" onclick="alternarCadastroAdmin('usuarios', true)">
+                        + Novo Cadastro
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnExpandirListaUsuarios" style="display:none;" onclick="alternarCadastroAdmin('usuarios', false)">
+                        📋 Maximizar Lista
+                    </button>
+                </div>
+            </div>
 
 
-            <table>
+            <div id="conteudoListaUsuarios">
 
+                <div style="margin-bottom:15px;max-width:420px;">
+                    <input type="text" id="buscaUsuarioAdmin" class="field" autocomplete="off"
+                        placeholder="🔍 Pesquisar usuário por nome, e-mail, perfil ou clínica..."
+                        onkeyup="filtrarTabelaAdmin('buscaUsuarioAdmin', 'tbodyUsuariosAdmin')">
+                </div>
 
-                <thead>
+                <div class="table-responsive">
+                <table>
 
-                    <tr>
 
-                        <th>ID</th>
+                    <thead>
 
-                        <th>Nome</th>
+                        <tr>
 
-                        <th>E-mail</th>
+                            <th>ID</th>
 
-                        <th>Perfil</th>
+                            <th>Nome</th>
 
-                        <th>Clínica</th>
+                            <th>E-mail</th>
 
-                        <th>Status</th>
+                            <th>Perfil</th>
 
-                        <th>Ações</th>
+                            <th>Clínica</th>
 
-                    </tr>
+                            <th>Status</th>
 
-                </thead>
+                            <th>Ações</th>
 
+                        </tr>
 
-                <tbody>
+                    </thead>
 
 
-                <?php while($u = $usuarios->fetch_assoc()): ?>
+                    <tbody id="tbodyUsuariosAdmin">
 
 
-                    <tr>
+                    <?php foreach($listaUsuariosAdmin as $u): ?>
 
 
-                        <td>
+                        <tr>
 
-                            <?= $u['id_usuario'] ?>
 
-                        </td>
+                            <td>
 
+                                <?= $u['id_usuario'] ?>
 
-                        <td>
+                            </td>
 
-                            <?= htmlspecialchars($u['nome']) ?>
 
-                        </td>
+                            <td>
 
+                                <a href="javascript:void(0)" class="user-name-link" onclick="visualizarDadosUsuario(<?= (int)$u['id_usuario'] ?>, 'admin')" title="Clique para visualizar os dados do usuário">
+                                    <?= htmlspecialchars($u['nome']) ?>
+                                </a>
 
-                        <td>
+                            </td>
 
-                            <?= htmlspecialchars($u['email']) ?>
 
-                        </td>
+                            <td>
 
+                                <?= htmlspecialchars($u['email']) ?>
 
-                        <td>
+                            </td>
 
-                            <?= htmlspecialchars($u['perfil']) ?>
 
-                        </td>
+                            <td>
 
+                                <?= htmlspecialchars($u['perfil']) ?>
 
-                        <td>
+                            </td>
 
-                            <?= $u['nome_clinica']
-                                ? htmlspecialchars($u['nome_clinica'])
-                                : 'Admin Master'
-                            ?>
 
-                        </td>
+                            <td>
 
+                                <?= $u['nome_clinica']
+                                    ? htmlspecialchars($u['nome_clinica'])
+                                    : 'Admin Master'
+                                ?>
 
-                        <td>
+                            </td>
 
-                            <?php if($u['status'] === 'ativo'): ?>
 
-                                <span class="status confirmed">
+                            <td>
 
-                                    Ativo
+                                <?php if($u['status'] === 'ativo'): ?>
 
-                                </span>
+                                    <span class="status confirmed">
 
-                            <?php else: ?>
+                                        Ativo
 
-                                <span class="status">
+                                    </span>
 
-                                    Inativo
+                                <?php else: ?>
 
-                                </span>
+                                    <span class="status">
 
-                            <?php endif; ?>
+                                        Inativo
 
-                        </td>
+                                    </span>
 
+                                <?php endif; ?>
 
-                        <td>
+                            </td>
 
-                            <button
-                                class="menu-btn"
-                                type="button"
-                                onclick="window.location.href='editar_usuario.php?id=<?= $u['id_usuario'] ?>'"
-                            >
 
-                                Editar
+                            <td>
 
-                            </button>
+                                <button
+                                    class="menu-btn"
+                                    type="button"
+                                    onclick="window.location.href='editar_usuario.php?id=<?= $u['id_usuario'] ?>'"
+                                >
 
+                                    Editar
 
-                            <button
-                                class="menu-btn"
-                                type="button"
-                                style="background:#c0392b;margin-left:5px;"
-                                onclick="confirmarExclusaoUsuario(<?= $u['id_usuario'] ?>, '<?= addslashes(htmlspecialchars($u['nome'])) ?>')"
-                            >
+                                </button>
 
-                                Excluir
 
-                            </button>
+                                <button
+                                    class="menu-btn"
+                                    type="button"
+                                    style="background:#c0392b;margin-left:5px;"
+                                    onclick="confirmarExclusaoUsuario(<?= $u['id_usuario'] ?>, '<?= addslashes(htmlspecialchars($u['nome'])) ?>')"
+                                >
 
-                        </td>
+                                    Excluir
 
+                                </button>
 
-                    </tr>
+                            </td>
 
 
-                <?php endwhile; ?>
+                        </tr>
 
 
-                </tbody>
+                    <?php endforeach; ?>
 
 
-            </table>
+                    </tbody>
+
+
+                </table>
+                </div>
+
+            </div>
 
 
         </div>
@@ -2262,7 +2408,7 @@ if ($especialidades) {
                                 Selecione
                             </option>
 
-                            <?php foreach ($listaClinicas as $cl): ?>
+                            <?php foreach ($listaClinicasSemAssinatura as $cl): ?>
 
                                 <option value="<?= $cl['id_clinica'] ?>">
                                     <?= htmlspecialchars($cl['nome']) ?>
@@ -2408,6 +2554,9 @@ if ($especialidades) {
 
                         <th>Status</th>
 
+                        <th>Ações</th>
+
+
                     </tr>
 
                 </thead>
@@ -2448,7 +2597,11 @@ if ($especialidades) {
 
                         <td>
 
-                            <?php if ($vencida): ?>
+                            <?php if ($a['status_clinica'] !== 'ativa' && $a['status'] === 'ativa'): ?>
+
+                                <span class="status status-cancelada">Clínica inativa</span>
+
+                            <?php elseif ($vencida): ?>
 
                                 <span class="status status-vencida">
                                     Vencida
@@ -2476,6 +2629,28 @@ if ($especialidades) {
 
                         </td>
 
+                        <td>
+                            <?php if ($a['status'] === 'ativa'): ?>
+                                <button type="button" class="menu-btn"
+                                    onclick='abrirEditarAssinatura(<?= json_encode([
+                                        "id" => (int)$a[$pkAssinatura],
+                                        "clinica" => $a["nome_clinica"],
+                                        "id_plano" => (int)$a["id_plano"],
+                                        "valor" => $a["valor"],
+                                        "inicio" => $a["data_inicio"],
+                                        "vencimento" => $a["data_vencimento"]
+                                    ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
+                                    Editar
+                                </button>
+                                <form action="api/cancelar_assinatura.php" method="POST" style="display:inline;"
+                                    onsubmit="return confirm('Cancelar a assinatura desta clínica?');">
+                                    <input type="hidden" name="id_assinatura" value="<?= (int)$a[$pkAssinatura] ?>">
+                                    <button type="submit" class="menu-btn" style="background:var(--danger,#e74c3c);color:#fff;">Cancelar</button>
+                                </form>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
                     </tr>
 
                 <?php endwhile; ?>
@@ -2530,41 +2705,23 @@ if ($especialidades) {
 
                 <tbody>
 
-
+<?php
+    $logsRecentes = [];
+    @$conn->query("CREATE TABLE IF NOT EXISTS logs_sistema (id_log INT AUTO_INCREMENT PRIMARY KEY, id_usuario INT NULL, nome_usuario VARCHAR(150) NULL, perfil VARCHAR(30) NULL, acao VARCHAR(255) NOT NULL, criado_em DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $resLogs = @$conn->query("SELECT nome_usuario, perfil, acao, criado_em FROM logs_sistema ORDER BY id_log DESC LIMIT 100");
+    if ($resLogs) { while ($lg = $resLogs->fetch_assoc()) { $logsRecentes[] = $lg; } }
+?>
+<?php if (empty($logsRecentes)): ?>
                     <tr>
-
-                        <td>
-                            31/05/2026 08:10
-                        </td>
-
-                        <td>
-                            Administrador
-                        </td>
-
-                        <td>
-                            Cadastro de clínica
-                        </td>
-
+                        <td colspan="3" style="text-align:center;color:#888;">Nenhuma ação registrada ainda.</td>
                     </tr>
-
-
+<?php else: foreach ($logsRecentes as $lg): ?>
                     <tr>
-
-                        <td>
-                            31/05/2026 09:25
-                        </td>
-
-                        <td>
-                            Secretária
-                        </td>
-
-                        <td>
-                            Agendamento de consulta
-                        </td>
-
+                        <td><?= date('d/m/Y H:i', strtotime($lg['criado_em'])) ?></td>
+                        <td><?= htmlspecialchars(($lg['nome_usuario'] ?? 'Sistema') . ($lg['perfil'] ? ' (' . $lg['perfil'] . ')' : '')) ?></td>
+                        <td><?= htmlspecialchars($lg['acao']) ?></td>
                     </tr>
-
-
+<?php endforeach; endif; ?>
                 </tbody>
 
             </table>
@@ -2668,7 +2825,53 @@ if ($especialidades) {
      JAVASCRIPT
 ============================== -->
 
-<script src="assets/js/main.js"></script>
+<!-- MODAL EDITAR ASSINATURA -->
+<div id="modal-editar-assinatura" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+    <div class="card" style="max-width:480px;width:92%;">
+        <h3>Editar Assinatura — <span id="ea-clinica"></span></h3>
+        <form action="api/editar_assinatura.php" method="POST">
+            <input type="hidden" name="id_assinatura" id="ea-id">
+            <div class="field-group">
+                <label>Plano *</label>
+                <select name="id_plano" id="ea-plano" class="field" required>
+                    <?php foreach ($listaPlanos as $pl): ?>
+                        <option value="<?= $pl['id_plano'] ?>"><?= htmlspecialchars($pl['nome']) ?> — R$ <?= number_format($pl['valor'], 2, ',', '.') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Valor (R$) *</label>
+                <input type="number" name="valor" id="ea-valor" class="field" step="0.01" min="0.01" required>
+            </div>
+            <div class="field-group">
+                <label>Data Início *</label>
+                <input type="date" name="data_inicio" id="ea-inicio" class="field" required>
+            </div>
+            <div class="field-group">
+                <label>Data Vencimento *</label>
+                <input type="date" name="data_vencimento" id="ea-venc" class="field" required>
+            </div>
+            <br>
+            <button type="submit" class="confirm-btn">Salvar</button>
+            <button type="button" class="menu-btn" onclick="document.getElementById('modal-editar-assinatura').style.display='none'">Fechar</button>
+        </form>
+    </div>
+</div>
+<script>
+window.usuariosDadosMap = <?= json_encode($usuariosMapAdmin, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+function abrirEditarAssinatura(a) {
+    document.getElementById('ea-id').value = a.id;
+    document.getElementById('ea-clinica').textContent = a.clinica;
+    document.getElementById('ea-plano').value = a.id_plano;
+    document.getElementById('ea-valor').value = a.valor;
+    document.getElementById('ea-inicio').value = a.inicio;
+    document.getElementById('ea-venc').value = a.vencimento;
+    document.getElementById('modal-editar-assinatura').style.display = 'flex';
+}
+</script>
+
+<script src="assets/js/main.js?v=<?= filemtime(__DIR__ . '/assets/js/main.js') ?>"></script>
 <script src="assets/js/admin.js?v=<?= filemtime(__DIR__ . '/assets/js/admin.js') ?>"></script>
 
 </body>

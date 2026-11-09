@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarPerfil('secretaria');
 
@@ -118,6 +119,7 @@ $stmt->bind_param(
 
 if ($stmt->execute()) {
     $_SESSION['mensagem_sucesso'] = "Consulta agendada com sucesso!";
+    registrarLog($conn, "Agendamento de consulta");
     header("Location: ../secretaria.php?aba=agendamentos");
     exit;
 } else {

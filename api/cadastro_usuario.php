@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarPerfil('admin');
 
@@ -273,6 +274,7 @@ $stmt->bind_param(
 try {
     if ($stmt->execute()) {
         $_SESSION['mensagem_sucesso'] = "Usuário cadastrado com sucesso!";
+        registrarLog($conn, "Cadastro de usuário");
     } else {
         $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar usuário: " . $stmt->error;
     }

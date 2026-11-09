@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/sessao.php';
 
 $_SESSION = [];
 session_unset();

@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarPerfil('admin');
 
@@ -65,6 +66,7 @@ try {
 
     if ($stmt->execute()) {
         $_SESSION['mensagem_sucesso'] = "Plano \"" . $nome . "\" cadastrado com sucesso!";
+        registrarLog($conn, "Cadastro de plano");
     } else {
         $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar plano: " . $stmt->error;
     }

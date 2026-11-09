@@ -37,7 +37,7 @@ try {
     require_once('../config/database.php');
 
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/../config/sessao.php';
     }
 
     if (!isset($_SESSION['id_usuario']) || !isset($_SESSION['perfil']) || $_SESSION['perfil'] !== 'medico') {
@@ -83,6 +83,13 @@ try {
         echo json_encode(['erro' => 'Consulta não encontrada.']);
         exit;
     }
+    /* CONSULTA FINALIZADA: SOMENTE LEITURA */
+    if ($consulta['status'] === 'finalizada') {
+        ob_clean();
+        echo json_encode(['erro' => 'Consulta finalizada: não é possível alterar as informações.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
 
     /* GARANTE QUE AS TABELAS RECEITA E SOLICITACAO_EXAME EXISTAM E TENHAM AS COLUNAS NECESSÁRIAS */
     garantirColunasTabela($conn, 'receita', [

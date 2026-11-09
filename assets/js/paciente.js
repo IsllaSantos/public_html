@@ -265,10 +265,14 @@ function carregarMinhasConsultas() {
             };
 
             var info = statusMap[c.status] || { texto: c.status, classe: 'status' };
+            if (c.status === 'agendada' && c.confirmado_paciente_em) {
+                info = { texto: 'Confirmada', classe: 'status confirmed' };
+            }
 
             var acoesHtml = '<span style="color:#888;font-size:0.85rem;">—</span>';
             if (c.status === 'agendada') {
-                acoesHtml = '<button type="button" class="menu-btn" style="background:#ef4444;font-size:0.8rem;padding:4px 10px;" onclick="cancelarMinhaConsulta(' + c.id_consulta + ')">Cancelar</button>';
+                var btnConfirmar = c.confirmado_paciente_em ? '' : '<button type="button" class="menu-btn" style="background:#27ae60;font-size:0.8rem;padding:4px 10px;margin-right:6px;" onclick="confirmarMinhaConsulta(' + c.id_consulta + ')">Confirmar presença</button>';
+                acoesHtml = btnConfirmar + '<button type="button" class="menu-btn" style="background:#ef4444;font-size:0.8rem;padding:4px 10px;" onclick="cancelarMinhaConsulta(' + c.id_consulta + ')">Cancelar</button>';
             }
 
             html += '<tr>';
@@ -359,7 +363,6 @@ function carregarMinhasReceitas() {
                 html += '</div>';
             }
 
-            html += '<button type="button" class="btn btn-secondary" style="width:100%;font-size:0.86rem;padding:9px;margin-top:6px;" onclick="imprimirReceitaPacientePorIndice(' + index + ')">🖨️ Visualizar / Imprimir Documento</button>';
             html += '</div>';
         });
         html += '</div>';
@@ -370,53 +373,6 @@ function carregarMinhasReceitas() {
         container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px;">Erro ao carregar suas prescrições.</p>';
     });
 }
-
-function imprimirReceitaPacientePorIndice(index) {
-    if (window.__receitasCache && window.__receitasCache[index]) {
-        imprimirReceitaPaciente(window.__receitasCache[index]);
-    }
-}
-
-function imprimirReceitaPaciente(rec) {
-    var html = '<div class="printable-area print-prescription-card">' +
-        '<div class="print-header">' +
-            '<div>' +
-                '<div class="print-clinic-title">TechNyes Clínicas</div>' +
-                '<div class="print-meta">Receituário e Pedidos de Exames</div>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-                '<div class="print-meta">Data da Consulta: ' + formatarDataBR(rec.data_consulta) + '</div>' +
-            '</div>' +
-        '</div>' +
-        '<div class="print-content-block" style="background:#f8fafc;padding:12px;border-radius:6px;margin-bottom:18px;">' +
-            '<strong>Médico Responsável:</strong> Dr(a). ' + escapeHtml(rec.nome_medico) + ' (' + escapeHtml(rec.especialidade || 'Médico') + ' - CRM: ' + escapeHtml(rec.crm_medico || '') + '-' + escapeHtml(rec.uf_medico || '') + ')' +
-        '</div>';
-
-    if (rec.medicamentos) {
-        html += '<div class="print-content-block">' +
-            '<h4>💊 Prescrição Medicamentosa:</h4>' +
-            '<div style="white-space:pre-wrap;font-size:0.95rem;line-height:1.7;">' + escapeHtml(rec.medicamentos) + '</div>' +
-        '</div>';
-    }
-
-    if (rec.exames) {
-        html += '<div class="print-content-block">' +
-            '<h4>🔬 Solicitação de Exames:</h4>' +
-            '<div style="white-space:pre-wrap;font-size:0.95rem;line-height:1.7;">' + escapeHtml(rec.exames) + '</div>' +
-        '</div>';
-    }
-
-    html += '<div class="print-footer">' +
-        '<div class="print-meta">Documento emitido eletronicamente via TechNyes.</div>' +
-        '<div class="print-signature">Assinatura / Carimbo Médico</div>' +
-    '</div></div>';
-
-    var botoes = '<button class="btn btn-secondary" onclick="window.fecharModal()">Fechar</button>' +
-                 '<button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir (A4)</button>';
-
-    window.abrirModal('Prescrição Médica', html, botoes);
-}
-
 
 /* ==============================
    MEUS ARQUIVOS
@@ -592,4 +548,17 @@ function escapeHtml(text) {
     var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function confirmarMinhaConsulta(idConsulta) {
+    var form = new FormData();
+    form.append('id_consulta', idConsulta);
+    fetch('api/paciente_api.php?acao=confirmar', { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        var msg = res.sucesso ? res.mensagem : (res.erro || 'Erro ao confirmar');
+        if (window.showToast) window.showToast(msg, res.sucesso ? 'success' : 'error');
+        else alert(msg);
+        if (res.sucesso) carregarMinhasConsultas();
+    });
 }

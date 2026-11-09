@@ -44,6 +44,15 @@ if ($resultado->num_rows === 0) {
 
 $clinica = $resultado->fetch_assoc();
 
+$temAssinaturaAtiva = false;
+$qa = $conn->prepare("SELECT 1 FROM assinaturas WHERE id_clinica = ? AND status = 'ativa' LIMIT 1");
+if ($qa) {
+    $qa->bind_param('i', $id_clinica);
+    $qa->execute();
+    $temAssinaturaAtiva = $qa->get_result()->num_rows > 0;
+    $qa->close();
+}
+
 
 /* LISTA DE ESTADOS */
 
@@ -70,7 +79,7 @@ $estados = [
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Editar Clínica - TechNyes</title>
+<title>Editar Clínica - NyesClinic</title>
 
 <link
     rel="stylesheet"
@@ -85,7 +94,7 @@ $estados = [
 <header>
 
     <div class="logo">
-        Tech<span>Nyes</span>
+        Nyes<span>Clinic</span>
     </div>
 
     <nav>
@@ -368,6 +377,27 @@ $estados = [
                     </select>
 
                 </div>
+
+                <div class="field-group" id="grupo-cancelar-assinatura" style="display:none;">
+                    <label>
+                        <input type="checkbox" name="cancelar_assinaturas" value="1" checked>
+                        Cancelar também a assinatura ativa desta clínica
+                    </label>
+                    <small style="color:#888;">Esta clínica possui assinatura ativa. Ao inativar a clínica ela deixa de contar no financeiro; marque para cancelar a assinatura também.</small>
+                </div>
+
+                <script>
+                (function () {
+                    var temAssinatura = <?= $temAssinaturaAtiva ? 'true' : 'false' ?>;
+                    var sel = document.querySelector('select[name="status"]');
+                    var grupo = document.getElementById('grupo-cancelar-assinatura');
+                    function atualizar() {
+                        grupo.style.display = (temAssinatura && sel.value === 'inativa') ? '' : 'none';
+                    }
+                    sel.addEventListener('change', atualizar);
+                    atualizar();
+                })();
+                </script>
 
 
             </div>

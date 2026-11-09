@@ -539,3 +539,64 @@ function confirmarExclusaoEspecialidade(id, nome) {
         form.submit();
     }
 }
+
+
+/* ==============================
+   ALTERNAR NOVO CADASTRO / LISTA
+============================== */
+
+function alternarCadastroAdmin(tipo, mostrar) {
+    if (tipo !== 'usuarios') return;
+
+    var cardForm = document.getElementById('cardNovoUsuario');
+    var cardLista = document.getElementById('cardListaUsuarios');
+    var conteudoLista = document.getElementById('conteudoListaUsuarios');
+    var btnNovo = document.getElementById('btnNovoCadastroUsuarios');
+    var btnExpandir = document.getElementById('btnExpandirListaUsuarios');
+
+    if (cardForm) {
+        cardForm.style.display = mostrar ? 'block' : 'none';
+    }
+    if (conteudoLista) {
+        conteudoLista.style.display = mostrar ? 'none' : 'block';
+    }
+    if (cardLista) {
+        cardLista.classList.toggle('card-minimized', !!mostrar);
+    }
+    if (btnNovo) {
+        btnNovo.style.display = mostrar ? 'none' : 'inline-flex';
+    }
+    if (btnExpandir) {
+        btnExpandir.style.display = mostrar ? 'inline-flex' : 'none';
+    }
+
+    if (mostrar && cardForm) {
+        aplicarMascaraCNPJ();
+        aplicarMascaraTelefone();
+        aplicarMascaraCPF();
+        aplicarBuscaCEP();
+        prevenirAutofillNovoUsuario();
+
+        var inputNome = cardForm.querySelector('input[name="nome"]');
+        if (inputNome) {
+            setTimeout(function() { inputNome.focus(); }, 50);
+        }
+    }
+}
+
+
+/* ==============================
+   FILTRO RÁPIDO DE TABELA (ADMIN)
+============================== */
+
+function filtrarTabelaAdmin(inputId, tbodyId) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    var termo = input.value.toLowerCase().trim();
+    var linhas = document.querySelectorAll('#' + tbodyId + ' tr');
+
+    linhas.forEach(function(linha) {
+        var textoLinha = linha.textContent.toLowerCase();
+        linha.style.display = (textoLinha.indexOf(termo) !== -1) ? '' : 'none';
+    });
+}

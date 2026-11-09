@@ -2,6 +2,7 @@
 
 require_once('../config/auth.php');
 require_once('../config/database.php');
+require_once('../config/logs.php');
 
 verificarPerfil('admin');
 
@@ -100,6 +101,7 @@ try {
     $stmt->close();
 
     $_SESSION['mensagem_sucesso'] = "Clínica \"" . $nome . "\" cadastrada com sucesso!";
+    registrarLog($conn, "Cadastro de clínica: " . $nome . "");
 
 } catch (Throwable $e) {
     $_SESSION['mensagem_sucesso'] = "Erro ao cadastrar clínica: " . $e->getMessage();

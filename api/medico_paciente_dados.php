@@ -39,7 +39,7 @@ try {
     garantirStatusConsulta($conn);
 
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/../config/sessao.php';
     }
 
     if (!isset($_SESSION['id_usuario']) || !isset($_SESSION['perfil']) || $_SESSION['perfil'] !== 'medico') {
@@ -237,6 +237,15 @@ try {
                     $stmtF->close();
                 }
             } catch (Throwable $eF) {}
+        }
+
+        /* Só é possível iniciar o atendimento no dia do agendamento */
+        if ($consultaAtual && isset($_GET['iniciar']) && !in_array($consultaAtual['status'], ['finalizada', 'cancelada'], true)) {
+            $hojeAtd = (new DateTime('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d');
+            if (($consultaAtual['data_consulta'] ?? '') !== $hojeAtd) {
+                echo json_encode(['erro' => 'O atendimento só pode ser iniciado no dia do agendamento (' . date('d/m/Y', strtotime($consultaAtual['data_consulta'])) . ').']);
+                exit;
+            }
         }
 
         if ($consultaAtual && $consultaAtual['status'] === 'aguardando_atendimento' && isset($_GET['iniciar'])) {
@@ -508,6 +517,37 @@ try {
             }
         }
     } catch (Throwable $eAx) {}
+
+    /* =========================
+       ADENDOS (consultas finalizadas)
+    ========================= */
+    try {
+        @$conn->query("CREATE TABLE IF NOT EXISTS prontuario_adendo (
+            id_adendo INT AUTO_INCREMENT PRIMARY KEY,
+            id_consulta INT NOT NULL,
+            id_medico INT NOT NULL,
+            texto TEXT NOT NULL,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX (id_consulta)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $idsH = array_map(function ($h) { return intval($h['id_consulta']); }, $historico);
+        if (!empty($idsH)) {
+            $in = implode(',', $idsH);
+            $resAd = $conn->query("SELECT id_consulta, texto, criado_em FROM prontuario_adendo WHERE id_consulta IN ($in) ORDER BY criado_em ASC");
+            $adPorConsulta = [];
+            if ($resAd) {
+                while ($ad = $resAd->fetch_assoc()) {
+                    $adPorConsulta[intval($ad['id_consulta'])][] = $ad;
+                }
+            }
+            foreach ($historico as &$hh2) {
+                $hh2['adendos'] = $adPorConsulta[intval($hh2['id_consulta'])] ?? [];
+            }
+            unset($hh2);
+        }
+    } catch (Throwable $eAd) {}
+
 
     /* =========================
        RESPOSTA JSON

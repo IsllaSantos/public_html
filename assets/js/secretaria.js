@@ -499,3 +499,162 @@ window.onload = function() {
     aplicarBuscaCEP();
     prevenirAutofillCadastrosSecretaria();
 };
+
+/* ==============================
+   BUSCA DE PACIENTES COM POPUP (aba Pacientes)
+============================== */
+
+function fecharPopupPacientes() {
+    var popup = document.getElementById('popupPacientes');
+    if (popup) popup.style.display = 'none';
+}
+
+function buscarPacientePopup(input) {
+    var popup = document.getElementById('popupPacientes');
+    var termo = input.value.toLowerCase().trim();
+    var linhas = document.querySelectorAll('#pacientes table tbody tr');
+    if (!popup) return;
+
+    /* Filtra também a tabela abaixo */
+    linhas.forEach(function(linha) {
+        linha.style.display = (termo === '' || linha.textContent.toLowerCase().indexOf(termo) !== -1) ? '' : 'none';
+    });
+
+    if (termo === '') {
+        fecharPopupPacientes();
+        return;
+    }
+
+    var somenteDigitos = termo.replace(/\D/g, '');
+    var resultados = [];
+    linhas.forEach(function(linha) {
+        var cel = linha.querySelectorAll('td');
+        if (cel.length < 2) return;
+        var nome = cel[0].textContent.trim();
+        var cpf = cel[1].textContent.trim();
+        var cpfNum = cpf.replace(/\D/g, '');
+        if (nome.toLowerCase().indexOf(termo) !== -1 ||
+            (somenteDigitos && cpfNum.indexOf(somenteDigitos) !== -1)) {
+            resultados.push({ nome: nome, cpf: cpf, linha: linha });
+        }
+    });
+
+    popup.innerHTML = '';
+
+    if (!resultados.length) {
+        var vazio = document.createElement('div');
+        vazio.style.cssText = 'padding:12px 14px;color:#888;font-style:italic;';
+        vazio.textContent = 'Nenhum paciente encontrado.';
+        popup.appendChild(vazio);
+    }
+
+    resultados.slice(0, 8).forEach(function(r) {
+        var item = document.createElement('div');
+        item.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #eee;';
+        item.onmouseenter = function() { item.style.background = '#f3f0e6'; };
+        item.onmouseleave = function() { item.style.background = ''; };
+
+        var n = document.createElement('strong');
+        n.textContent = r.nome;
+        var c = document.createElement('div');
+        c.style.cssText = 'font-size:.8rem;color:#777;';
+        c.textContent = r.cpf ? 'CPF: ' + r.cpf : 'CPF não informado';
+        item.appendChild(n);
+        item.appendChild(c);
+
+        /* Ao escolher, mostra apenas aquele paciente na tabela */
+        item.onclick = function() {
+            input.value = r.nome;
+            document.querySelectorAll('#pacientes table tbody tr').forEach(function(l) {
+                l.style.display = (l === r.linha) ? '' : 'none';
+            });
+            fecharPopupPacientes();
+            r.linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        popup.appendChild(item);
+    });
+
+    popup.style.display = 'block';
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.querySelector('.busca-paciente-wrap');
+    if (wrap && !wrap.contains(e.target)) fecharPopupPacientes();
+});
+
+
+/* ==============================
+   ALTERNAR NOVO CADASTRO / LISTA
+============================== */
+
+function alternarCadastroSecretaria(tipo, mostrar) {
+    var ehMedico = (tipo === 'medicos');
+    var cardForm = document.getElementById(ehMedico ? 'cardNovoMedico' : 'cardNovoPaciente');
+    var cardLista = document.getElementById(ehMedico ? 'cardListaMedicos' : 'cardListaPacientes');
+    var conteudoLista = document.getElementById(ehMedico ? 'conteudoListaMedicos' : 'conteudoListaPacientes');
+    var btnNovo = document.getElementById(ehMedico ? 'btnNovoCadastroMedicos' : 'btnNovoCadastroPacientes');
+    var btnExpandir = document.getElementById(ehMedico ? 'btnExpandirListaMedicos' : 'btnExpandirListaPacientes');
+
+    if (cardForm) {
+        cardForm.style.display = mostrar ? 'block' : 'none';
+    }
+    if (conteudoLista) {
+        conteudoLista.style.display = mostrar ? 'none' : 'block';
+    }
+    if (cardLista) {
+        cardLista.classList.toggle('card-minimized', !!mostrar);
+    }
+    if (btnNovo) {
+        btnNovo.style.display = mostrar ? 'none' : 'inline-flex';
+    }
+    if (btnExpandir) {
+        btnExpandir.style.display = mostrar ? 'inline-flex' : 'none';
+    }
+
+    if (mostrar && cardForm) {
+        aplicarMascaraTelefone();
+        aplicarMascaraCPF();
+        aplicarBuscaCEP();
+        prevenirAutofillCadastrosSecretaria();
+
+        var inputNome = cardForm.querySelector('input[name="nome"]');
+        if (inputNome) {
+            setTimeout(function() { inputNome.focus(); }, 50);
+        }
+    }
+}
+
+
+/* ==============================
+   EXCLUSÃO DE MÉDICO / PACIENTE
+============================== */
+
+function confirmarExclusaoUsuarioSecretaria(id, nome, aba) {
+    var rotulo = (aba === 'pacientes') ? 'paciente' : 'médico';
+    var confirmou = confirm(
+        'Tem certeza que deseja excluir o ' + rotulo + ' "' + nome + '"?\n\n' +
+        'A exclusão só será realizada se não houver consultas ou dados clínicos vinculados.\n' +
+        'Esta ação não pode ser desfeita.'
+    );
+
+    if (confirmou) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'api/excluir_usuario.php';
+
+        var inputId = document.createElement('input');
+        inputId.type = 'hidden';
+        inputId.name = 'id_usuario';
+        inputId.value = id;
+
+        var inputAba = document.createElement('input');
+        inputAba.type = 'hidden';
+        inputAba.name = 'aba';
+        inputAba.value = aba || 'medicos';
+
+        form.appendChild(inputId);
+        form.appendChild(inputAba);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}

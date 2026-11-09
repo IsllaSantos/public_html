@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TechNyes - Sistema Inteligente para Clínicas e Consultórios</title>
+    <title>NyesClinic - Sistema Inteligente para Clínicas e Consultórios</title>
     <meta name="description" content="Plataforma moderna para gestão clínica, prontuário eletrônico integrado, agenda médica inteligente, portal do paciente e conformidade LGPD.">
     <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 </head>
@@ -13,12 +13,13 @@
     <div class="header-content">
         <div class="logo">
             <a href="index.php">
-                Tech<span>Nyes</span>
+                Nyes<span>Clinic</span>
             </a>
         </div>
 
         <nav>
             <a href="index.php" class="active">Início</a>
+            <a href="#quem-somos">Quem Somos</a>
             <a href="#recursos">Recursos</a>
             <a href="#modulos">Módulos</a>
             <a href="login.php" class="btn btn-primary" style="padding:6px 16px;color:var(--black-dark);">Acessar Sistema →</a>
@@ -29,9 +30,6 @@
 <section id="homeSection" class="hero">
     <div class="hero-content">
         <div class="hero-text">
-            <div class="hero-badge">
-                ✨ Gestão Clínica 360° & LGPD
-            </div>
 
             <h1>
                 Gestão Inteligente para <span>Clínicas & Médicos</span>
@@ -97,11 +95,44 @@
     </div>
 </section>
 
+<!-- QUEM SOMOS -->
+<section id="quem-somos" class="container" style="padding:50px 0 20px 0;">
+    <div style="text-align:center;max-width:760px;margin:0 auto 36px auto;">
+        <h2 style="font-size:2.2rem;font-weight:800;color:var(--black);margin-bottom:12px;">Quem somos?</h2>
+        <p style="color:var(--text-muted);font-size:1.05rem;line-height:1.7;">
+            A <strong>TechNyes</strong> é uma startup de tecnologia em saúde, criada por estudantes de Gestão da Tecnologia da Informação da FATEC Campinas, e é a desenvolvedora do <strong>NyesClinic</strong>, sistema web de gestão para clínicas médicas e consultórios.
+        </p>
+    </div>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:24px;">
+        <div class="card">
+            <div style="font-size:2rem;margin-bottom:12px;">🎯</div>
+            <h3>Nossa Missão</h3>
+            <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.6;">
+                Modernizar o dia a dia de clínicas de pequeno e médio porte com uma solução digital acessível, que aproxima profissionais de saúde e pacientes.
+            </p>
+        </div>
+        <div class="card">
+            <div style="font-size:2rem;margin-bottom:12px;">💡</div>
+            <h3>O Problema que Resolvemos</h3>
+            <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.6;">
+                Muitas clínicas ainda dependem de planilhas, agendas de papel e sistemas desconectados. O NyesClinic centraliza agenda, prontuário, receitas e exames em um só lugar.
+            </p>
+        </div>
+        <div class="card">
+            <div style="font-size:2rem;margin-bottom:12px;">🔒</div>
+            <h3>Compromisso com a Segurança</h3>
+            <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.6;">
+                Controle de acesso por perfil e cuidado com os dados sensíveis, em linha com a LGPD e as boas práticas do setor de saúde.
+            </p>
+        </div>
+    </div>
+</section>
 <!-- RECURSOS -->
 <section id="recursos" class="container" style="padding:40px 0;">
     <div style="text-align:center;max-width:700px;margin:0 auto 40px auto;">
         <h2 style="font-size:2.2rem;font-weight:800;color:var(--black);margin-bottom:12px;">
-            O que o TechNyes oferece para sua equipe?
+            O que o NyesClinic oferece para sua equipe?
         </h2>
         <p style="color:var(--text-muted);font-size:1.05rem;">
             Uma solução projetada para eliminar papelada, acelerar o atendimento e melhorar a experiência do paciente.
@@ -154,7 +185,7 @@
 
 <footer style="background:var(--white);border-top:1px solid var(--border);padding:25px 0;text-align:center;color:var(--text-muted);font-size:0.88rem;">
     <div class="container">
-        <p>© <?= date('Y') ?> <strong>TechNyes</strong> — Sistema Clínico Integrado. Todos os direitos reservados.</p>
+        <p>© <?= date('Y') ?> <strong>NyesClinic</strong> — Sistema Clínico Integrado. Todos os direitos reservados. · <a href="privacidade.php" style="color:var(--gold-dark);">Política de Privacidade</a></p>
     </div>
 </footer>
 

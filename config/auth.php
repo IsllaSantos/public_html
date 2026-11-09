@@ -1,8 +1,12 @@
 <?php
 
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    require_once __DIR__ . '/sessao.php';
 }
+
+require_once __DIR__ . '/seguranca.php';
+// Qualquer página/API protegida rejeita POST vindo de outra origem (CSRF)
+exigirOrigemValida();
 
 function ehRequisicaoApi()
 {
@@ -43,6 +47,32 @@ function verificarLogin()
 {
     if (!isset($_SESSION['id_usuario'])) {
         redirecionarLogin();
+    }
+
+    // Expira a sessão após 2 horas sem atividade
+    $agora = time();
+    if (isset($_SESSION['ultima_atividade']) && ($agora - $_SESSION['ultima_atividade']) > 7200) {
+        $_SESSION = [];
+        session_destroy();
+        redirecionarLogin();
+    }
+    $_SESSION['ultima_atividade'] = $agora;
+
+    // Exige o aceite vigente da Política de Privacidade (LGPD)
+    if (empty($_SESSION['lgpd_ok'])) {
+        if (ehRequisicaoApi()) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(403);
+            echo json_encode([
+                'sucesso' => false,
+                'erro' => 'É necessário aceitar a Política de Privacidade para continuar.',
+                'lgpd' => false
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        header('Location: ' . caminhoRaiz() . 'aceite_lgpd.php');
+        exit;
     }
 }
 

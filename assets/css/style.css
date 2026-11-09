@@ -897,6 +897,15 @@ table tr:hover {
     display: block;
 }
 
+/* Abas do paciente ficam fora do .container: aplica a mesma margem lateral */
+.paciente-tab {
+    width: 95%;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 25px;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1541,4 +1550,110 @@ table tr:hover {
     .login-box {
         padding: 30px 20px;
     }
+}
+
+/* ================================= */
+/* NOME DE USUÁRIO CLICÁVEL & MODAL  */
+/* ================================= */
+
+.user-name-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--black);
+    cursor: pointer;
+    border-bottom: 1.5px dashed rgba(240, 178, 79, 0.65);
+    padding-bottom: 1px;
+    transition: color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.user-name-link:hover {
+    color: var(--gold-dark);
+    border-bottom-color: var(--gold-dark);
+    border-bottom-style: solid;
+}
+
+.user-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 18px;
+}
+
+.user-detail-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5bc64, var(--gold));
+    color: var(--black-dark);
+    font-size: 1.35rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(240, 178, 79, 0.35);
+}
+
+.user-detail-section {
+    margin-bottom: 18px;
+}
+
+.user-detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.user-detail-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold-dark);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.user-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.user-detail-item {
+    background: #f8fafc;
+    border: 1px solid #eef2f6;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+}
+
+.user-detail-item .detail-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.user-detail-item .detail-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-word;
+}
+
+.card-minimized {
+    padding: 16px 24px !important;
+    background: #f8fafc !important;
+    border: 1.5px dashed var(--border-hover) !important;
+}
+
+.card-minimized .top-bar {
+    margin-bottom: 0 !important;
 }

@@ -230,7 +230,16 @@ if ($acao === 'agendar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
    LISTAR MINHAS CONSULTAS
 ============================== */
 
+function garantirColunaConfirmacao($conn) {
+    $r = @$conn->query("SHOW COLUMNS FROM consulta LIKE 'confirmado_paciente_em'");
+    if ($r && $r->num_rows === 0) {
+        @$conn->query("ALTER TABLE consulta ADD COLUMN confirmado_paciente_em DATETIME NULL");
+    }
+}
+
 if ($acao === 'minhas_consultas') {
+
+    garantirColunaConfirmacao($conn);
 
     $stmt = $conn->prepare("
         SELECT
@@ -239,6 +248,7 @@ if ($acao === 'minhas_consultas') {
             c.hora_consulta,
             c.motivo_consulta,
             c.status,
+            c.confirmado_paciente_em,
             med.nome AS nome_medico,
             med.especialidade
         FROM consulta c
@@ -260,6 +270,30 @@ if ($acao === 'minhas_consultas') {
     exit;
 }
 
+
+/* ==============================
+   CONFIRMAR PRESENÇA (PACIENTE)
+============================== */
+
+if ($acao === 'confirmar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    garantirColunaConfirmacao($conn);
+    $id_consulta = intval($_POST['id_consulta'] ?? 0);
+
+    $stmt = $conn->prepare("
+        UPDATE consulta SET confirmado_paciente_em = NOW()
+        WHERE id_consulta = ? AND id_paciente = ? AND status = 'agendada'
+        AND data_consulta >= CURDATE()
+    ");
+    $stmt->bind_param("ii", $id_consulta, $id_paciente);
+    $stmt->execute();
+
+    if ($stmt->affected_rows > 0) {
+        echo json_encode(['sucesso' => true, 'mensagem' => 'Presença confirmada! Até lá.']);
+    } else {
+        echo json_encode(['erro' => 'Não foi possível confirmar esta consulta.']);
+    }
+    exit;
+}
 
 /* ==============================
    CANCELAR CONSULTA (PACIENTE)

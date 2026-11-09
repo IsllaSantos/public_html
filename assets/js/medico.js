@@ -87,6 +87,7 @@ function filtrarPacientes() {
 var consultaAtualId = 0;
 var pacienteAtualId = 0;
 var modoLeitura = false;
+var consultaAtualFinalizada = false;
 
 function verDetalhes(idConsulta, idPaciente) {
     iniciarAtendimento(idConsulta, idPaciente, 'abaHistorico');
@@ -107,7 +108,8 @@ function aplicarModoAtendimento(leitura) {
     }
 }
 
-function preencherConsulta(idConsulta) {
+function preencherConsulta(idConsulta, finalizada) {
+    if (finalizada) return;
     iniciarAtendimento(idConsulta, pacienteAtualId, 'abaAnamnese', true);
 }
 
@@ -192,6 +194,7 @@ function iniciarAtendimento(idConsulta, idPaciente, tabInicial, forcarEdicao) {
         preencherConsultaAtual(dados.consulta_atual);
         preencherFormProntuario(dados.prontuario, dados.consulta_atual);
         preencherFormReceita(dados.receita, dados.exames);
+        consultaAtualFinalizada = Boolean(dados.consulta_atual && ['finalizada','cancelada'].indexOf(dados.consulta_atual.status) !== -1);
         preencherHistorico(dados.historico);
         preencherAnexos(dados.anexos);
 
@@ -203,6 +206,13 @@ function iniciarAtendimento(idConsulta, idPaciente, tabInicial, forcarEdicao) {
         /* Esconde loading, mostra conteúdo */
         document.getElementById('atendimentoLoading').style.display = 'none';
         document.getElementById('atendimentoConteudo').style.display = 'block';
+
+        /* Consulta finalizada: somente visualização (histórico), nunca edição */
+        var consultaFinalizada = Boolean(dados.consulta_atual && dados.consulta_atual.status === 'finalizada');
+        if (consultaFinalizada) {
+            tabInicial = 'abaHistorico';
+            forcarEdicao = false;
+        }
 
         /* Definir aba inicial (Anamnese ou Histórico) */
         var targetTab = tabInicial || 'abaAnamnese';
@@ -218,7 +228,7 @@ function iniciarAtendimento(idConsulta, idPaciente, tabInicial, forcarEdicao) {
 
         /* Controlar readonly se finalizada (exceto se forcarEdicao for true ou se estiver sem prontuário) */
         var semProntuario = !dados.prontuario || !dados.prontuario.queixa_principal;
-        controlarEdicao(dados.consulta_atual, Boolean(forcarEdicao || semProntuario));
+        controlarEdicao(dados.consulta_atual, Boolean(!consultaFinalizada && (forcarEdicao || semProntuario)));
 
         /* Visualização: só histórico. Preenchimento: abas + campos */
         var leitura = (tabInicial === 'abaHistorico');
@@ -703,7 +713,8 @@ function setFieldVal(id, val) {
 
 function controlarEdicao(consulta, forcarEdicao) {
 
-    var isFinalizada = Boolean(consulta && consulta.status === 'finalizada' && !forcarEdicao);
+    /* Consulta finalizada é sempre somente leitura */
+    var isFinalizada = Boolean(consulta && consulta.status === 'finalizada');
 
     /* Textareas e inputs do prontuário */
     var campos = document.querySelectorAll(
@@ -1046,7 +1057,7 @@ function preencherHistorico(historico) {
     html += '    <h3 style="margin:0; color:#2c3e50; font-size:1.25rem;">📂 Prontuários Antigos / Histórico do Paciente</h3>';
     html += '    <p style="margin:4px 0 0; color:#7f8c8d; font-size:0.9rem;">Consulte os atendimentos e prontuários anteriores deste paciente</p>';
     html += '  </div>';
-    if (consultaAtualId > 0) {
+    if (consultaAtualId > 0 && !consultaAtualFinalizada) {
         html += '  <button type="button" class="confirm-btn" style="background:#27ae60; font-size:0.95rem; padding:10px 20px; display:inline-flex; align-items:center; gap:8px;" onclick="iniciarNovoProntuario()">';
         html += '    ▶ Iniciar Atendimento (Novo Prontuário)';
         html += '  </button>';
@@ -1061,7 +1072,7 @@ function preencherHistorico(historico) {
         html += '  <p style="color:#7f8c8d; font-size:1rem; max-width:500px; margin:0 auto 25px auto;">';
         html += '    Nenhum prontuário anterior foi encontrado para este paciente.';
         html += '  </p>';
-        if (consultaAtualId > 0) {
+        if (consultaAtualId > 0 && !consultaAtualFinalizada) {
             html += '  <button type="button" class="confirm-btn" style="background:#27ae60; font-size:1.05rem; padding:12px 28px;" onclick="iniciarNovoProntuario()">';
             html += '    ▶ Iniciar Atendimento (Novo Prontuário)';
             html += '  </button>';
@@ -1194,15 +1205,42 @@ function preencherHistorico(historico) {
 
         if (!temProntuario && !h.receita && !h.exames_solicitados && !(h.anexos && h.anexos.length)) {
             html += '<p style="color:#888;font-style:italic;margin-top:10px;">Sem registros detalhados para esta consulta.</p>';
-            html += '<div style="margin-top:15px;"><button type="button" class="confirm-btn" style="background:#27ae60;" onclick="preencherConsulta(' + h.id_consulta + ')">✍ Preencher dados desta consulta</button></div>';
+            if (h.status !== 'finalizada' && h.status !== 'cancelada' && ehHojeISO(h.data_consulta)) {
+    html += '<div style="margin-top:15px;"><button type="button" class="confirm-btn" style="background:#27ae60;" onclick="preencherConsulta(' + h.id_consulta + ')">✍ Preencher dados desta consulta</button></div>';
+            }
         } else {
-            html += '<div style="margin-top:15px;"><button type="button" class="menu-btn" style="background:#2980b9;" onclick="preencherConsulta(' + h.id_consulta + ')">✏️ Editar / Visualizar nos formulários</button></div>';
+            if (h.status !== 'finalizada' && h.status !== 'cancelada' && ehHojeISO(h.data_consulta)) {
+    html += '<div style="margin-top:15px;"><button type="button" class="menu-btn" style="background:#2980b9;" onclick="preencherConsulta(' + h.id_consulta + ')">✏️ Editar / Visualizar nos formulários</button></div>';
+            }
+        }
+
+        if (h.status === 'finalizada') {
+            html += '<div style="margin-top:15px;padding:15px;background:rgba(142,68,173,.07);border-radius:10px;border-left:4px solid #8e44ad;">';
+            html += '<strong>📝 Adendos</strong>';
+            if (h.adendos && h.adendos.length) {
+                h.adendos.forEach(function(ad) {
+                    html += '<div style="margin-top:8px;padding-left:10px;border-left:2px solid #8e44ad;"><small style="color:#888;">' + escapeHtml(ad.criado_em || '') + '</small><div style="white-space:pre-wrap;">' + escapeHtml(ad.texto || '') + '</div></div>';
+                });
+            } else {
+                html += '<p style="color:#888;font-style:italic;margin:6px 0;">Nenhum adendo registrado.</p>';
+            }
+            html += '<textarea id="adendoTexto' + h.id_consulta + '" class="field" rows="2" style="margin-top:10px;" placeholder="Registrar adendo (o prontuário original não é alterado)"></textarea>';
+            html += '<button type="button" class="menu-btn" style="margin-top:8px;background:#8e44ad;" onclick="salvarAdendo(' + h.id_consulta + ')">Adicionar adendo</button>';
+            html += '</div>';
+            html += '<div style="margin-top:12px;"><a class="menu-btn" style="background:#34495e;text-decoration:none;display:inline-block;" target="_blank" href="medico_imprimir_prontuario.php?id_consulta=' + h.id_consulta + '">🖨 Imprimir Prontuário / PDF</a> ' +
+                '<a class="menu-btn" style="background:#8a6d1d;text-decoration:none;display:inline-block;margin-left:8px;" target="_blank" href="medico_imprimir_receita.php?id_consulta=' + h.id_consulta + '">🖨 Imprimir Receita</a></div>';
         }
 
         html += '</div></details>';
     });
 
     container.innerHTML = html;
+}
+
+function ehHojeISO(d) {
+    var t = new Date();
+    var hoje = t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2);
+    return d === hoje;
 }
 
 function htmlListaAnexos(anexos) {
@@ -1464,7 +1502,7 @@ function abrirModalImpressaoReceita() {
     var html = '<div class="printable-area print-prescription-card" id="areaImpressaoDoc">' +
         '<div class="print-header">' +
             '<div>' +
-                '<div class="print-clinic-title">TechNyes Clínicas</div>' +
+                '<div class="print-clinic-title">NyesClinic</div>' +
                 '<div class="print-meta">Receituário e Orientações Médicas</div>' +
             '</div>' +
             '<div style="text-align:right;">' +
@@ -1502,12 +1540,12 @@ function abrirModalImpressaoReceita() {
     }
 
     html += '<div class="print-footer">' +
-        '<div class="print-meta">Documento emitido eletronicamente via TechNyes.</div>' +
+        '<div class="print-meta">Documento emitido eletronicamente via NyesClinic.</div>' +
         '<div class="print-signature">Assinatura / Carimbo Médico</div>' +
     '</div></div>';
 
     var botoes = '<button class="btn btn-secondary" onclick="window.fecharModal()">Fechar</button>' +
-                 '<button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir (A4)</button>';
+                 '<button class="btn btn-primary" onclick="window.imprimirElemento(\'areaImpressaoDoc\', \'Receituário\')">🖨️ Imprimir (A4)</button>';
 
     window.abrirModal('Impressão de Receituário e Documentos', html, botoes);
 }
@@ -1535,4 +1573,74 @@ function iniciarPollingFilaMedico() {
 
 document.addEventListener('DOMContentLoaded', function() {
     iniciarPollingFilaMedico();
+});
+
+
+/* ==============================
+   ADENDO EM CONSULTA FINALIZADA
+============================== */
+
+function salvarAdendo(idConsulta) {
+    var campo = document.getElementById('adendoTexto' + idConsulta);
+    var texto = campo ? campo.value.trim() : '';
+    if (!texto) {
+        alert('Digite o texto do adendo.');
+        return;
+    }
+    var form = new FormData();
+    form.append('id_consulta', idConsulta);
+    form.append('texto', texto);
+
+    fetch('api/medico_salvar_adendo.php', { method: 'POST', body: form })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res && res.sucesso) {
+                iniciarAtendimento(consultaAtualId, pacienteAtualId, 'abaHistorico');
+            } else {
+                alert((res && res.erro) ? res.erro : 'Não foi possível salvar o adendo.');
+            }
+        })
+        .catch(function() { alert('Falha na comunicação com o servidor.'); });
+}
+
+
+/* ==============================
+   MODELOS DE RECEITA / EXAMES (salvos neste navegador)
+============================== */
+
+function lerModelos(chave) {
+    try { return JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) { return []; }
+}
+
+function salvarModelo(chave, idCampo, rotulo) {
+    var campo = document.getElementById(idCampo);
+    if (!campo || !campo.value.trim()) { alert('Preencha o campo antes de salvar como modelo.'); return; }
+    var nome = prompt('Nome do modelo de ' + rotulo + ':');
+    if (!nome) return;
+    var modelos = lerModelos(chave).filter(function(m) { return m.nome !== nome; });
+    modelos.push({ nome: nome, texto: campo.value });
+    localStorage.setItem(chave, JSON.stringify(modelos));
+    atualizarSelectModelos(chave, idCampo + 'Modelos');
+}
+
+function aplicarModelo(chave, idCampo, nome) {
+    var campo = document.getElementById(idCampo);
+    var m = lerModelos(chave).filter(function(x) { return x.nome === nome; })[0];
+    if (campo && m && !campo.readOnly) campo.value = m.texto;
+}
+
+function atualizarSelectModelos(chave, idSelect) {
+    var sel = document.getElementById(idSelect);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Usar modelo...</option>';
+    lerModelos(chave).forEach(function(m) {
+        var o = document.createElement('option');
+        o.value = m.nome; o.textContent = m.nome;
+        sel.appendChild(o);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    atualizarSelectModelos('modelosReceita', 'prontReceitaMedModelos');
+    atualizarSelectModelos('modelosExames', 'prontExamesSolModelos');
 });

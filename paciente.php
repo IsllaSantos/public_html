@@ -37,7 +37,7 @@ while ($esp = $resEspec->fetch_assoc()) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Painel do Paciente - TechNyes</title>
+<title>Painel do Paciente - NyesClinic</title>
 
 <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 
@@ -49,7 +49,7 @@ while ($esp = $resEspec->fetch_assoc()) {
 
     <div class="logo">
         <a href="paciente.php">
-            Tech<span>Nyes</span>
+            Nyes<span>Clinic</span>
         </a>
     </div>
 

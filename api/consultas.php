@@ -13,7 +13,7 @@ require_once __DIR__ . '/../config/auth.php';
 require_once __DIR__ . '/../config/database.php';
 
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    require_once __DIR__ . '/../config/sessao.php';
 }
 
 $userId = $_SESSION['id_usuario'] ?? $_SESSION['user_id'] ?? null;
